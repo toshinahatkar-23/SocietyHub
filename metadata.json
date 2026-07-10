@@ -1,0 +1,6 @@
+{
+  "name": "SocietyHub – Smart Living Starts Here",
+  "description": "A comprehensive Residential Management Portal featuring Dashboard, Resident Directory, Visitor logs, Complaint tracking, Maintenance & Billing, and Notices.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
