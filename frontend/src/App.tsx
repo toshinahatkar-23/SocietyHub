@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { TabName, Resident, Visitor, Complaint, MaintenanceBill, Notice, NoticeType, ComplaintCategory, ComplaintPriority, ComplaintStatus, BillingStatus } from './types';
+import { TabName, Resident, Visitor, Complaint, MaintenanceBill, Notice, NoticeType, ComplaintCategory, ComplaintPriority, ComplaintStatus, BillingStatus, RegistrationRequest } from './types';
 import {
   INITIAL_BILLS
 } from './data';
@@ -16,6 +16,7 @@ import ProfileView from './components/ProfileView';
 import LoginView from './components/LoginView';
 import ResidentPortal from './components/ResidentPortal';
 import SecurityPortal from './components/SecurityPortal';
+import RegistrationRequestsView from './components/RegistrationRequestsView';
 import { apiService } from './services/api';
 
 export default function App() {
@@ -63,6 +64,7 @@ export default function App() {
   // Core Reactive Data States (Init with empty arrays for API connected tables)
   const [residents, setResidents] = useState<Resident[]>([]);
   const [visitors, setVisitors] = useState<Visitor[]>([]);
+  const [requests, setRequests] = useState<RegistrationRequest[]>([]);
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [bills, setBills] = useState<MaintenanceBill[]>(INITIAL_BILLS);
   const [notices, setNotices] = useState<Notice[]>([]);
@@ -130,6 +132,23 @@ export default function App() {
         isBookmarked: false
       }));
       setNotices(mappedNotices);
+
+      // 5. Fetch Registration Requests
+      const reqData = await apiService.getRegistrationRequests();
+      const mappedRequests: RegistrationRequest[] = reqData.map(r => ({
+        request_id: r.request_id,
+        full_name: r.full_name,
+        email: r.email,
+        phone: r.phone,
+        block: r.block,
+        flat_number: r.flat_number,
+        flat_type: r.flat_type,
+        status: r.status,
+        submitted_at: r.submitted_at,
+        reviewed_at: r.reviewed_at,
+        reviewed_by: r.reviewed_by
+      }));
+      setRequests(mappedRequests);
 
     } catch (err: any) {
       console.error('Failed to sync backend data:', err);
@@ -274,7 +293,18 @@ export default function App() {
   };
 
   // State mutation handlers
-  // 1. Residents View Actions
+  // 1. Resident Registration Request Actions
+  const handleApproveRequest = async (id: number) => {
+    await apiService.approveRegistrationRequest(id);
+    await loadAllData(); // Auto-refresh requests list & residents directory
+  };
+
+  const handleRejectRequest = async (id: number) => {
+    await apiService.rejectRegistrationRequest(id);
+    await loadAllData(); // Auto-refresh requests list & residents directory
+  };
+
+  // 2. Residents View Actions
   const handleAddResidentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!resName || !resPhone || !resFlat) {
@@ -580,10 +610,11 @@ export default function App() {
           <DashboardOverview
             onTriggerModal={(modal) => handleTriggerModal(modal, null)}
             setActiveTab={setActiveTab}
-            residentCount={482 + residents.length}
+            residentCount={residents.length}
             visitorCount={visitors.length}
             openComplaintCount={complaints.filter(c => c.status === 'Open').length}
             totalCollection={`$${(45280 + bills.filter(b => b.status === 'Paid').reduce((acc, c) => acc + c.amount, 0)).toLocaleString('en-US')}`}
+            pendingRequestsCount={requests.filter(r => r.status === 'Pending').length}
           />
         );
       case 'residents':
@@ -592,6 +623,15 @@ export default function App() {
             residents={residents}
             onDeleteResident={handleDeleteResident}
             onOpenAddModal={() => handleTriggerModal('addResident')}
+            searchQuery={searchQuery}
+          />
+        );
+      case 'requests':
+        return (
+          <RegistrationRequestsView
+            requests={requests}
+            onApprove={handleApproveRequest}
+            onReject={handleRejectRequest}
             searchQuery={searchQuery}
           />
         );

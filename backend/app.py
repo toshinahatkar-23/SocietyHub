@@ -356,6 +356,196 @@ def handle_notices():
             return jsonify({"message": "Notice published (Mock Mode)"}), 201
 
 
+# ==========================================
+# RESIDENT REGISTRATION REQUESTS API (PHASE 1)
+# ==========================================
+
+@app.route('/api/register-request', methods=['POST'])
+def register_request():
+    """
+    Submits a new resident registration request.
+    Stores the pending request with hashed password in registration_requests table.
+    """
+    data = request.get_json() or {}
+    full_name = data.get('full_name')
+    email = data.get('email')
+    phone = data.get('phone')
+    block = data.get('block')
+    flat_number = data.get('flat_number')
+    flat_type = data.get('flat_type')
+    password = data.get('password')
+
+    # 1. Required fields validation
+    if not all([full_name, email, phone, block, flat_number, flat_type, password]):
+        return jsonify({"error": "All fields are required"}), 400
+
+    # 2. Email format validation
+    if '@' not in email or '.' not in email:
+        return jsonify({"error": "Invalid email address format"}), 400
+
+    # 3. Mobile number validation (exactly 10 digits)
+    if not phone.isdigit() or len(phone) != 10:
+        return jsonify({"error": "Mobile number must be exactly 10 digits"}), 400
+
+    # 4. Password validation (at least 6 characters)
+    if len(password) < 6:
+        return jsonify({"error": "Password must be at least 6 characters long"}), 400
+
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            # 5. Check if email already registered in users table
+            cursor.execute("SELECT 1 FROM users WHERE email = %s", (email,))
+            if cursor.fetchone():
+                conn.close()
+                return jsonify({"error": "An active account already exists with this email address."}), 400
+
+            # 6. Check duplicate pending request with same email
+            cursor.execute("SELECT 1 FROM registration_requests WHERE email = %s AND status = 'Pending'", (email,))
+            if cursor.fetchone():
+                conn.close()
+                return jsonify({"error": "A pending registration request already exists for this email address."}), 400
+
+            # 7. Check duplicate pending request with same Block + Flat Number
+            cursor.execute("SELECT 1 FROM registration_requests WHERE block = %s AND flat_number = %s AND status = 'Pending'", (block, flat_number))
+            if cursor.fetchone():
+                conn.close()
+                return jsonify({"error": f"A pending registration request already exists for {block}, Flat {flat_number}."}), 400
+
+            # 8. Hash password using bcrypt (12 rounds)
+            hashed_pwd = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(12)).decode('utf-8')
+
+            # 9. Insert request
+            sql = """
+                INSERT INTO registration_requests (full_name, email, phone, block, flat_number, flat_type, password_hash, status)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 'Pending')
+            """
+            cursor.execute(sql, (full_name, email, phone, block, flat_number, flat_type, hashed_pwd))
+        conn.close()
+        return jsonify({"message": "Registration request submitted successfully"}), 201
+    except Exception as e:
+        print(f"[Error] Failed to register request: {e}")
+        return jsonify({"error": f"Failed to submit request: {str(e)}"}), 500
+
+
+# ==========================================
+# ADMIN REGISTRATION REQUESTS MANAGEMENT (PHASE 2)
+# ==========================================
+
+@app.route('/api/registration-requests', methods=['GET'])
+def get_registration_requests():
+    """Fetches all resident registration requests sorted by newest first."""
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            sql = "SELECT * FROM registration_requests ORDER BY submitted_at DESC"
+            cursor.execute(sql)
+            requests = cursor.fetchall()
+            
+            # Format datetime columns to ISO/Standard strings for json serialization
+            for r in requests:
+                if r.get('submitted_at'):
+                    r['submitted_at'] = r['submitted_at'].strftime('%Y-%m-%d %H:%M:%S')
+                if r.get('reviewed_at'):
+                    r['reviewed_at'] = r['reviewed_at'].strftime('%Y-%m-%d %H:%M:%S')
+        conn.close()
+        return jsonify(requests), 200
+    except Exception as e:
+        print(f"[Error] Failed to fetch registration requests: {e}")
+        return jsonify([]), 200
+
+
+@app.route('/api/registration-requests/<int:request_id>/approve', methods=['POST'])
+def approve_registration_request(request_id):
+    """
+    Approves a resident registration request.
+    Creates a resident record in the users table and marks request as Approved.
+    """
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            # 1. Retrieve the registration request
+            cursor.execute("SELECT * FROM registration_requests WHERE request_id = %s", (request_id,))
+            req = cursor.fetchone()
+            if not req:
+                conn.close()
+                return jsonify({"error": "Registration request not found."}), 404
+
+            if req['status'] != 'Pending':
+                conn.close()
+                return jsonify({"error": f"Registration request is already {req['status']}."}), 400
+
+            # 2. Prevent duplicate approvals: Verify email does not already exist in users
+            cursor.execute("SELECT 1 FROM users WHERE email = %s", (req['email'],))
+            if cursor.fetchone():
+                conn.close()
+                return jsonify({"error": "An active account already exists with this email address."}), 400
+
+            # 3. Create the resident account in the users table
+            sql_insert = """
+                INSERT INTO users (name, email, password, role, phone, block, flat_number, flat_type, status)
+                VALUES (%s, %s, %s, 'resident', %s, %s, %s, %s, 'active')
+            """
+            cursor.execute(sql_insert, (
+                req['full_name'],
+                req['email'],
+                req['password_hash'], # Copy existing hashed password
+                req['phone'],
+                req['block'],
+                req['flat_number'],
+                req['flat_type']
+            ))
+
+            # 4. Mark the request as Approved in registration_requests
+            sql_update = """
+                UPDATE registration_requests
+                SET status = 'Approved', reviewed_at = NOW(), reviewed_by = 1
+                WHERE request_id = %s
+            """
+            cursor.execute(sql_update, (request_id,))
+
+        conn.close()
+        return jsonify({"message": "Registration request approved successfully."}), 200
+    except Exception as e:
+        print(f"[Error] Failed to approve request: {e}")
+        return jsonify({"error": f"Failed to approve request: {str(e)}"}), 500
+
+
+@app.route('/api/registration-requests/<int:request_id>/reject', methods=['POST'])
+def reject_registration_request(request_id):
+    """
+    Rejects a resident registration request.
+    Marks request status as Rejected.
+    """
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            # 1. Retrieve the registration request
+            cursor.execute("SELECT * FROM registration_requests WHERE request_id = %s", (request_id,))
+            req = cursor.fetchone()
+            if not req:
+                conn.close()
+                return jsonify({"error": "Registration request not found."}), 404
+
+            if req['status'] != 'Pending':
+                conn.close()
+                return jsonify({"error": f"Registration request is already {req['status']}."}), 400
+
+            # 2. Mark the request as Rejected in registration_requests
+            sql_update = """
+                UPDATE registration_requests
+                SET status = 'Rejected', reviewed_at = NOW(), reviewed_by = 1
+                WHERE request_id = %s
+            """
+            cursor.execute(sql_update, (request_id,))
+
+        conn.close()
+        return jsonify({"message": "Registration request rejected successfully."}), 200
+    except Exception as e:
+        print(f"[Error] Failed to reject request: {e}")
+        return jsonify({"error": f"Failed to reject request: {str(e)}"}), 500
+
+
 # Running Flask application
 if __name__ == '__main__':
     # Standard development server bindings

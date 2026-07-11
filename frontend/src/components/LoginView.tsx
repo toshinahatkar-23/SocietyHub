@@ -13,7 +13,7 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Screen routing state
-  const [activeScreen, setActiveScreen] = useState<'login' | 'forgot-password' | 'register'>('login');
+  const [activeScreen, setActiveScreen] = useState<'login' | 'forgot-password' | 'register' | 'register-success'>('login');
 
   // Custom inline notification states
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -29,8 +29,11 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
   const [regPhone, setRegPhone] = useState('');
   const [regBlock, setRegBlock] = useState('Block A');
   const [regFlat, setRegFlat] = useState('');
+  const [regFlatType, setRegFlatType] = useState('3 BHK');
   const [regPassword, setRegPassword] = useState('');
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
+  const [regConfirmChecked, setRegConfirmChecked] = useState(false);
+  const [regSubmitting, setRegSubmitting] = useState(false);
   const [regMessage, setRegMessage] = useState<string | null>(null);
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
@@ -88,23 +91,78 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
     }, 1200);
   };
 
-  const handleRegisterSubmit = (e: React.FormEvent) => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
     setRegMessage(null);
 
+    // 1. Required fields check
     if (!regName || !regEmail || !regPhone || !regFlat || !regPassword || !regConfirmPassword) {
       setErrorMessage('All fields are required.');
       return;
     }
 
+    // 2. Email format validation
+    if (!regEmail.includes('@') || !regEmail.includes('.')) {
+      setErrorMessage('Please enter a valid email address.');
+      return;
+    }
+
+    // 3. Mobile number validation (exactly 10 digits)
+    if (!/^\d{10}$/.test(regPhone)) {
+      setErrorMessage('Mobile number must be exactly 10 digits.');
+      return;
+    }
+
+    // 4. Password length validation
+    if (regPassword.length < 6) {
+      setErrorMessage('Password must be at least 6 characters long.');
+      return;
+    }
+
+    // 5. Password confirmation match check
     if (regPassword !== regConfirmPassword) {
       setErrorMessage('Passwords do not match.');
       return;
     }
 
-    // Pure UI placeholder message (no backend submission, no mock success screen)
-    setRegMessage('Registration workflow will be implemented in the next phase.');
+    // 6. Checkbox check
+    if (!regConfirmChecked) {
+      setErrorMessage('You must confirm that you are a resident of this society to submit the request.');
+      return;
+    }
+
+    setRegSubmitting(true);
+    try {
+      await apiService.registerRequest({
+        full_name: regName,
+        email: regEmail,
+        phone: regPhone,
+        block: regBlock,
+        flat_number: regFlat,
+        flat_type: regFlatType,
+        password: regPassword
+      });
+
+      setRegSubmitting(false);
+      // Clear inputs
+      setRegName('');
+      setRegEmail('');
+      setRegPhone('');
+      setRegBlock('Block A');
+      setRegFlat('');
+      setRegFlatType('3 BHK');
+      setRegPassword('');
+      setRegConfirmPassword('');
+      setRegConfirmChecked(false);
+      
+      // Navigate to success screen
+      setActiveScreen('register-success');
+    } catch (err: any) {
+      setRegSubmitting(false);
+      const errMsg = err.response?.data?.error || err.message || 'Failed to submit registration request. Please try again.';
+      setErrorMessage(errMsg);
+    }
   };
 
   const handleUseAccount = (roleEmail: string) => {
@@ -441,7 +499,7 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
               </>
             )}
 
-            {/* Screen 3: REQUEST RESIDENT ACCOUNT FORM (UI Placeholder) */}
+            {/* Screen 3: REQUEST RESIDENT ACCOUNT FORM */}
             {activeScreen === 'register' && (
               <>
                 <div>
@@ -456,12 +514,6 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
                   <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl flex items-start gap-3">
                     <span className="material-symbols-outlined text-red-500 shrink-0">error</span>
                     <div className="text-xs font-semibold text-red-700 leading-relaxed">{errorMessage}</div>
-                  </div>
-                )}
-                {regMessage && (
-                  <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-xl flex items-start gap-3">
-                    <span className="material-symbols-outlined text-blue-500 shrink-0">info</span>
-                    <div className="text-xs font-semibold text-blue-700 leading-relaxed">{regMessage}</div>
                   </div>
                 )}
 
@@ -560,6 +612,41 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                        Flat Type
+                      </label>
+                      <div className="relative flex items-center bg-white border border-slate-200 rounded-xl px-3 focus-within:ring-2 focus-within:ring-primary/10 focus-within:border-primary transition-all">
+                        <span className="material-symbols-outlined text-slate-400 text-[18px] select-none shrink-0">tag</span>
+                        <select
+                          value={regFlatType}
+                          onChange={(e) => setRegFlatType(e.target.value)}
+                          className="bg-transparent border-none focus:ring-0 text-xs font-semibold w-full ml-2 py-3 outline-none text-slate-700 cursor-pointer"
+                        >
+                          <option value="1 BHK">1 BHK</option>
+                          <option value="2 BHK">2 BHK</option>
+                          <option value="3 BHK">3 BHK</option>
+                          <option value="Villa">Villa</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                        Upload ID Proof (Optional Placeholder)
+                      </label>
+                      <div className="relative flex items-center bg-white border border-slate-200 rounded-xl px-3 focus-within:ring-2 focus-within:ring-primary/10 focus-within:border-primary transition-all">
+                        <span className="material-symbols-outlined text-slate-400 text-[18px] select-none shrink-0">upload_file</span>
+                        <input
+                          type="file"
+                          accept=".pdf,.png,.jpg,.jpeg"
+                          className="bg-transparent border-none focus:ring-0 text-xs font-semibold w-full ml-2 py-2 outline-none text-slate-500 file:mr-3 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[10px] file:font-semibold file:bg-slate-100 file:text-slate-600 hover:file:bg-slate-200 cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
                         Create Password
                       </label>
                       <div className="relative flex items-center bg-white border border-slate-200 rounded-xl px-3 focus-within:ring-2 focus-within:ring-primary/10 focus-within:border-primary transition-all">
@@ -593,11 +680,32 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
                     </div>
                   </div>
 
+                  <div className="flex items-center gap-2.5 pt-1.5">
+                    <input
+                      type="checkbox"
+                      id="confirm-resident"
+                      checked={regConfirmChecked}
+                      onChange={(e) => setRegConfirmChecked(e.target.checked)}
+                      className="w-4.5 h-4.5 text-primary bg-white rounded-lg focus:ring-primary cursor-pointer border border-slate-300 transition-colors"
+                    />
+                    <label htmlFor="confirm-resident" className="text-xs font-bold text-slate-500 cursor-pointer select-none">
+                      I confirm that I am a resident of this society.
+                    </label>
+                  </div>
+
                   <button
                     type="submit"
-                    className="w-full h-12 bg-primary text-white font-bold rounded-xl hover:bg-primary/95 transition-all text-sm uppercase tracking-wider shadow-sm flex items-center justify-center gap-2 hover:shadow-md cursor-pointer pt-1"
+                    disabled={regSubmitting}
+                    className="w-full h-12 bg-primary text-white font-bold rounded-xl hover:bg-primary/95 transition-all text-sm uppercase tracking-wider shadow-sm flex items-center justify-center gap-2 hover:shadow-md cursor-pointer pt-1 disabled:opacity-80"
                   >
-                    Submit Request
+                    {regSubmitting ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                        Submitting Request...
+                      </>
+                    ) : (
+                      'Submit Request'
+                    )}
                   </button>
 
                   <div className="text-center mt-6">
@@ -611,11 +719,46 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
                       className="text-xs font-bold text-slate-500 hover:text-primary transition-all flex items-center justify-center gap-1 mx-auto cursor-pointer"
                     >
                       <span className="material-symbols-outlined text-[16px]">arrow_back</span>
-                      Back to Sign In
+                      Back to Login
                     </button>
                   </div>
                 </form>
               </>
+            )}
+
+            {/* Screen 4: REGISTRATION REQUEST SUBMITTED SUCCESS CARD */}
+            {activeScreen === 'register-success' && (
+              <div className="text-center space-y-6 py-4 animate-fade-in-up">
+                <div className="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center mx-auto shadow-sm">
+                  <span className="material-symbols-outlined text-emerald-500 text-[36px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                    check_circle
+                  </span>
+                </div>
+
+                <div className="space-y-2.5">
+                  <h2 className="font-sans font-bold text-2xl text-slate-900 tracking-tight leading-none">
+                    Registration Request Submitted
+                  </h2>
+                  <p className="text-slate-500 text-sm leading-relaxed max-w-sm mx-auto font-medium">
+                    Your registration request has been submitted successfully. The Society Administrator will verify your information. You will receive access once your account has been approved.
+                  </p>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveScreen('login');
+                      setErrorMessage(null);
+                      setSuccessMessage(null);
+                    }}
+                    className="px-6 py-3 bg-primary hover:bg-primary/95 text-white font-bold rounded-xl transition-all text-xs uppercase tracking-wider shadow-sm flex items-center justify-center gap-2 hover:shadow-md cursor-pointer mx-auto"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">arrow_back</span>
+                    Return to Login
+                  </button>
+                </div>
+              </div>
             )}
           </div>
 

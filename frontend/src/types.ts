@@ -66,4 +66,18 @@ export interface MaintenanceBill {
   status: BillingStatus;
 }
 
-export type TabName = 'dashboard' | 'residents' | 'visitors' | 'complaints' | 'maintenance' | 'notices' | 'profile';
+export type TabName = 'dashboard' | 'residents' | 'requests' | 'visitors' | 'complaints' | 'maintenance' | 'notices' | 'profile';
+
+export interface RegistrationRequest {
+  request_id: number;
+  full_name: string;
+  email: string;
+  phone: string;
+  block: string;
+  flat_number: string;
+  flat_type: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  submitted_at: string;
+  reviewed_at?: string | null;
+  reviewed_by?: number | null;
+}

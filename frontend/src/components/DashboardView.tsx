@@ -8,6 +8,7 @@ interface DashboardViewProps {
   visitorCount: number;
   openComplaintCount: number;
   totalCollection: string;
+  pendingRequestsCount: number;
 }
 
 export default function DashboardOverview({
@@ -16,7 +17,8 @@ export default function DashboardOverview({
   residentCount,
   visitorCount,
   openComplaintCount,
-  totalCollection
+  totalCollection,
+  pendingRequestsCount
 }: DashboardViewProps) {
   // Mock activity log history that matches designs
   const [activities, setActivities] = React.useState([
@@ -61,7 +63,7 @@ export default function DashboardOverview({
       </div>
 
       {/* Bento Grid - Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
         {/* Total Residents Card */}
         <div 
           onClick={() => setActiveTab('residents')}
@@ -143,6 +145,37 @@ export default function DashboardOverview({
               <span className="material-symbols-outlined text-[14px] font-bold">check_circle</span>
               <span>85% Collected</span>
             </div>
+          </div>
+        </div>
+
+        {/* Pending Requests Card */}
+        <div 
+          onClick={() => setActiveTab('requests')}
+          className="bg-white p-8 rounded-[16px] border border-orange-200 bg-gradient-to-br from-white to-orange-50/20 shadow-[0_1px_3px_rgba(0,0,0,0.01)] hover:border-orange-300 hover:shadow-sm transition-all duration-300 cursor-pointer flex flex-col justify-between h-[175px]"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] uppercase tracking-wider font-extrabold text-slate-400">Pending Requests</span>
+            <div className="w-10 h-10 bg-orange-50 rounded-xl border border-orange-100/30 text-orange-600 flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-[20px]">how_to_reg</span>
+            </div>
+          </div>
+          <div className="mt-4 flex items-end justify-between">
+            <div>
+              <div className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+                {pendingRequestsCount < 10 ? `0${pendingRequestsCount}` : pendingRequestsCount}
+              </div>
+              <p className="text-[10px] text-slate-500 font-semibold mt-1">Requires review</p>
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveTab('requests');
+              }}
+              className="text-[10px] bg-slate-950 hover:bg-slate-800 text-white font-extrabold uppercase px-3 py-1.5 rounded-lg tracking-wider transition-all flex items-center gap-1 active:scale-95 cursor-pointer"
+            >
+              Review Now
+              <span className="material-symbols-outlined text-[12px] font-bold">arrow_forward</span>
+            </button>
           </div>
         </div>
       </div>

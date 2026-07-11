@@ -126,5 +126,50 @@ export const apiService = {
     const response = await apiClient.post<{ message: string }>('/api/notices', notice);
     return response.data;
   },
+
+  // Resident Registration Request
+  async registerRequest(requestData: {
+    full_name: string;
+    email: string;
+    phone: string;
+    block: string;
+    flat_number: string;
+    flat_type: string;
+    password: string;
+  }): Promise<{ message: string }> {
+    const response = await apiClient.post<{ message: string }>('/api/register-request', requestData);
+    return response.data;
+  },
+
+  // Registration Requests Management (Admin)
+  async getRegistrationRequests(): Promise<RegistrationRequestResponse[]> {
+    const response = await apiClient.get<RegistrationRequestResponse[]>('/api/registration-requests');
+    return response.data;
+  },
+
+  async approveRegistrationRequest(id: number): Promise<{ message: string }> {
+    const response = await apiClient.post<{ message: string }>(`/api/registration-requests/${id}/approve`);
+    return response.data;
+  },
+
+  async rejectRegistrationRequest(id: number): Promise<{ message: string }> {
+    const response = await apiClient.post<{ message: string }>(`/api/registration-requests/${id}/reject`);
+    return response.data;
+  },
 };
+
+export interface RegistrationRequestResponse {
+  request_id: number;
+  full_name: string;
+  email: string;
+  phone: string;
+  block: string;
+  flat_number: string;
+  flat_type: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  submitted_at: string;
+  reviewed_at?: string | null;
+  reviewed_by?: number | null;
+}
+
 export default apiClient;

@@ -13,7 +13,8 @@ import {
   Shield,
   ShieldAlert,
   ClipboardList,
-  Building
+  Building,
+  UserPlus
 } from 'lucide-react';
 
 const iconMap = {
@@ -29,6 +30,7 @@ const iconMap = {
   'gate-entry': ArrowLeftRight,
   'gate-exit': ArrowLeftRight,
   emergency: ShieldAlert,
+  requests: UserPlus,
 };
 
 interface SidebarProps {
@@ -67,6 +69,7 @@ export default function Sidebar({ portal, activeTab, setActiveTab, onLogout }: S
         return [
           { name: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
           { name: 'residents', label: 'Residents Directory', icon: 'residents' },
+          { name: 'requests', label: 'Registration Requests', icon: 'requests' },
           { name: 'visitors', label: 'Visitors Register', icon: 'visitors' },
           { name: 'complaints', label: 'Complaints & Tickets', icon: 'complaints' },
           { name: 'maintenance', label: 'Maintenance Billing', icon: 'maintenance' },

@@ -50,6 +50,8 @@ export default function Header({
         return 'Search notice titles & announcements...';
       case 'profile':
         return 'Search settings & preferences...';
+      case 'requests':
+        return 'Search requests by name, email, flat...';
       default:
         return 'Search records, residents...';
     }
@@ -66,6 +68,9 @@ export default function Header({
         break;
       case 'residents':
         viewName = 'Residents Directory';
+        break;
+      case 'requests':
+        viewName = 'Registration Requests';
         break;
       case 'visitors':
         viewName = portal === 'resident' ? 'Guest Pre-Clearance' : 'Visitors Register';
