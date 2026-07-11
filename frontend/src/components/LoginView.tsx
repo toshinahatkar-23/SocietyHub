@@ -1,43 +1,56 @@
 import React, { useState } from 'react';
 import { apiService } from '../services/api';
+import apartmentImage from '../../assets/modern_apartment.png';
 
 interface LoginViewProps {
   onLoginSuccess: (name: string, role: string, userObj?: any) => void;
 }
 
 export default function LoginView({ onLoginSuccess }: LoginViewProps) {
-  const [email, setEmail] = useState('admin@societyhub.com');
+  const [email, setEmail] = useState('sarah.chen@societyhub.com');
   const [password, setPassword] = useState('password123');
   const [rememberMe, setRememberMe] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Marketing quote slider local state
-  const quotes = [
-    { text: "SocietyHub transformed our community's communication. Overdue invoices plummeted by 80% in just two months.", author: "Arjun Mehta", role: "Resident Association President, Wing B" },
-    { text: "The visitor pre-screening gate protocol is absolute magic. We feel 10x safer, and delivery guys never pile up.", author: "Sarah Jenkins", role: "Chief Security Officer" },
-    { text: "I can raise plumbing issues and pay maintenance dues within seconds. Beautifully simple, clean software.", author: "Priya Sharma", role: "Resident of Apt 302" }
-  ];
-  const [activeQuoteIdx, setActiveQuoteIdx] = useState(0);
+  // Screen routing state
+  const [activeScreen, setActiveScreen] = useState<'login' | 'forgot-password' | 'register'>('login');
 
-  const handleNextQuote = () => {
-    setActiveQuoteIdx((prev) => (prev + 1) % quotes.length);
-  };
+  // Custom inline notification states
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Forgot password form states
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotSubmitting, setForgotSubmitting] = useState(false);
+
+  // Resident registration request states
+  const [regName, setRegName] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPhone, setRegPhone] = useState('');
+  const [regBlock, setRegBlock] = useState('Block A');
+  const [regFlat, setRegFlat] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regConfirmPassword, setRegConfirmPassword] = useState('');
+  const [regMessage, setRegMessage] = useState<string | null>(null);
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
-      alert('Please enter both your email address and password.');
+      setErrorMessage('Please enter both your email address and password.');
+      setSuccessMessage(null);
       return;
     }
 
     setIsSubmitting(true);
+    setErrorMessage(null);
+    setSuccessMessage(null);
     try {
       const data = await apiService.login(email, password);
       setIsSubmitting(false);
 
       const user = data.user;
       if (user.role === 'staff') {
-        alert('Staff Portal is under development. Please log in with a different role.');
+        setErrorMessage('Staff Portal is under development. Please log in with a different role.');
         return;
       }
 
@@ -52,171 +65,613 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
     } catch (err: any) {
       setIsSubmitting(false);
       const errMsg = err.response?.data?.error || err.message || 'Login failed. Please check credentials or API connection.';
-      alert(errMsg);
+      setErrorMessage(errMsg);
     }
   };
 
+  const handleForgotPasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail) {
+      setErrorMessage('Please enter your email address.');
+      setSuccessMessage(null);
+      return;
+    }
+    setForgotSubmitting(true);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    // Simulate sending reset instructions link
+    setTimeout(() => {
+      setForgotSubmitting(false);
+      setSuccessMessage(`A password reset link has been sent to ${forgotEmail}. Please check your inbox.`);
+      setForgotEmail('');
+    }, 1200);
+  };
+
+  const handleRegisterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+    setRegMessage(null);
+
+    if (!regName || !regEmail || !regPhone || !regFlat || !regPassword || !regConfirmPassword) {
+      setErrorMessage('All fields are required.');
+      return;
+    }
+
+    if (regPassword !== regConfirmPassword) {
+      setErrorMessage('Passwords do not match.');
+      return;
+    }
+
+    // Pure UI placeholder message (no backend submission, no mock success screen)
+    setRegMessage('Registration workflow will be implemented in the next phase.');
+  };
+
+  const handleUseAccount = (roleEmail: string) => {
+    setEmail(roleEmail);
+    setPassword('password123');
+    setActiveScreen('login');
+    setErrorMessage(null);
+    setSuccessMessage(null);
+  };
+
+  const rolesData = [
+    {
+      role: "Society Admin",
+      email: "sarah.chen@societyhub.com",
+      icon: "admin_panel_settings",
+      desc: "Full administrative access",
+      colorClass: "bg-blue-50 text-blue-700 border-blue-100",
+      hoverBorder: "hover:border-blue-300 hover:shadow-blue-50/50",
+      recommended: true
+    },
+    {
+      role: "Resident",
+      email: "arjun.k@example.com",
+      icon: "home",
+      desc: "Bills, complaints & notices",
+      colorClass: "bg-emerald-50 text-emerald-700 border-emerald-100",
+      hoverBorder: "hover:border-emerald-300 hover:shadow-emerald-50/50",
+      recommended: false
+    },
+    {
+      role: "Security Guard",
+      email: "vikram.s@societyhub.com",
+      icon: "shield",
+      desc: "Visitor verification & gate access",
+      colorClass: "bg-cyan-50 text-cyan-700 border-cyan-100",
+      hoverBorder: "hover:border-cyan-300 hover:shadow-cyan-50/50",
+      recommended: false
+    }
+  ];
+
   return (
     <div className="min-h-screen w-full flex bg-slate-50 text-slate-800 animate-fade-in">
-      {/* Left Column: Visual branding and testimonials (Hidden on small screens) */}
-      <div className="hidden lg:flex w-1/2 bg-slate-900 relative p-12 flex-col justify-between overflow-hidden">
-        {/* Glowing atmospheric vector circles */}
-        <div className="absolute top-[-100px] left-[-100px] w-[400px] h-[400px] rounded-full bg-primary/10 blur-3xl"></div>
-        <div className="absolute bottom-[-150px] right-[-150px] w-[500px] h-[500px] rounded-full bg-emerald-500/10 blur-3xl"></div>
+      
+      {/* Left Column: Premium SaaS Visual Branding, Hero, and Custom Features (Hidden on mobile/tablet) */}
+      <div className="hidden lg:flex w-5/12 bg-slate-950 relative p-12 flex-col justify-between overflow-hidden border-r border-slate-900 select-none">
+        
+        {/* Background Image with Dark Blue Gradient Overlay */}
+        <div className="absolute inset-0 z-0">
+          <img
+            src={apartmentImage}
+            alt="Modern residential community"
+            className="w-full h-full object-cover opacity-55 mix-blend-luminosity"
+          />
+          {/* Dark blue gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/95 via-slate-950/80 to-slate-950/45 mix-blend-multiply"></div>
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-950/45 via-transparent to-emerald-950/10"></div>
+        </div>
 
-        {/* Brand Header */}
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-md">
-            <span className="material-symbols-outlined text-primary font-bold text-[24px]">domain</span>
+        {/* Brand Logo Header */}
+        <div className="relative z-10 flex items-center gap-3.5 pt-6 pl-6">
+          <div className="w-11 h-11 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shadow-lg backdrop-blur-md">
+            <span className="material-symbols-outlined text-white font-bold text-[24px]">domain</span>
           </div>
           <div>
-            <h1 className="font-sans font-extrabold text-white text-xl tracking-tight leading-none">SocietyHub</h1>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Community Cloud Console</p>
-          </div>
-        </div>
-
-        {/* Core Marketing message */}
-        <div className="relative z-10 my-auto max-w-lg">
-          <h2 className="font-sans font-bold text-3xl xl:text-4xl text-white tracking-tight leading-snug">
-            Streamlining residential ecosystem operations globally.
-          </h2>
-          <p className="text-slate-400 text-[14px] mt-4 leading-relaxed font-medium">
-            From automated invoice creation to instant guard-checklists, manage all society residents, visitors, complaints, and billing dues in a single certified administrative interface.
-          </p>
-
-          {/* Customer Quote Carousel */}
-          <div className="mt-8 bg-white/5 backdrop-blur-md p-6 rounded-[16px] border border-white/10 relative shadow-sm">
-            <p className="text-[14px] font-semibold text-white/95 italic leading-relaxed">
-              "{quotes[activeQuoteIdx].text}"
-            </p>
-            <div className="mt-4 flex justify-between items-end">
-              <div>
-                <p className="text-xs font-bold text-white">{quotes[activeQuoteIdx].author}</p>
-                <p className="text-[10px] text-slate-400 font-bold mt-0.5">{quotes[activeQuoteIdx].role}</p>
-              </div>
-              <button
-                onClick={handleNextQuote}
-                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all cursor-pointer border border-white/5"
-                title="Next slide quote"
-              >
-                <span className="material-symbols-outlined text-[16px] font-bold">arrow_forward</span>
-              </button>
+            <div className="flex items-center gap-2">
+              <h1 className="font-sans font-black text-white text-xl tracking-tight leading-none">SocietyHub</h1>
+              <span className="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded bg-white/10 text-slate-300 border border-white/10">
+                v1.0
+              </span>
             </div>
+            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-1.5">Smart Living Starts Here</p>
           </div>
         </div>
 
-        {/* Footer info */}
-        <div className="relative z-10 text-[11px] text-slate-500 font-bold uppercase tracking-wider">
-          © 2026 SocietyHub Technologies. Inc. All rights reserved.
+        {/* Hero Section */}
+        <div className="relative z-10 my-auto space-y-6 max-w-md">
+          <h2 className="font-sans font-black text-4xl xl:text-5xl text-white tracking-tight leading-[1.15]">
+            Smart Residential <br />
+            <span className="bg-gradient-to-r from-blue-400 via-indigo-400 to-emerald-400 bg-clip-text text-transparent">
+              Community Management
+            </span>
+          </h2>
+          <div className="space-y-4">
+            <p className="text-slate-300 text-sm leading-relaxed font-medium">
+              A modern, unified platform designed to streamline visitor screening, maintenance billing, and resident operations for connected communities.
+            </p>
+            <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest border-l-2 border-primary pl-3 py-0.5">
+              Trusted by modern residential communities.
+            </p>
+          </div>
+        </div>
+
+        {/* Why SocietyHub Card (replaces statistics & long list) */}
+        <div className="relative z-10 bg-white/[0.03] backdrop-blur-md p-6 rounded-2xl border border-white/10 shadow-lg space-y-4">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-blue-400 text-[18px]">verified</span>
+            <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-300">Why SocietyHub?</h4>
+          </div>
+          <div className="space-y-3">
+            {[
+              { label: "Secure Authentication", icon: "lock" },
+              { label: "Visitor Management", icon: "person_add" },
+              { label: "Maintenance Billing", icon: "payments" },
+              { label: "Complaint Tracking", icon: "report_problem" },
+              { label: "Real-time Notices", icon: "campaign" }
+            ].map((why) => (
+              <div key={why.label} className="flex items-center gap-3 text-slate-300 text-xs font-semibold">
+                <div className="w-5 h-5 rounded-md bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-blue-400 text-[12px]">{why.icon}</span>
+                </div>
+                <span>{why.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Footer copyright */}
+        <div className="relative z-10 text-[10px] text-slate-500 font-bold uppercase tracking-wider pt-4">
+          © 2026 SocietyHub Technologies. Inc.
         </div>
       </div>
 
-      {/* Right Column: Credential Entry Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-slate-50">
-        <div className="w-full max-w-md space-y-8">
-          {/* Logo element for mobile view */}
-          <div className="lg:hidden flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-sm">
-              <span className="material-symbols-outlined text-white text-[22px]">domain</span>
+      {/* Right Column: Dynamic Authentication Card & Roles Deck */}
+      <div className="w-full lg:w-7/12 flex flex-col justify-between p-6 md:p-12 lg:p-16 bg-slate-50 overflow-y-auto">
+        <div className="max-w-3xl mx-auto w-full flex-1 flex flex-col justify-center my-8 animate-fade-in-up">
+          
+          {/* Logo header for mobile/tablet view */}
+          <div className="lg:hidden flex items-center gap-3.5 mb-8 justify-start">
+            <div className="w-11 h-11 rounded-xl bg-primary flex items-center justify-center shadow-md">
+              <span className="material-symbols-outlined text-white text-[24px]">domain</span>
             </div>
             <div>
-              <h1 className="font-sans font-extrabold text-primary text-xl leading-none">SocietyHub</h1>
-              <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold mt-1">Management Console</p>
-            </div>
-          </div>
-
-          <div>
-            <h2 className="font-sans font-bold text-[36px] text-slate-900 tracking-tight leading-none">Welcome back</h2>
-            <p className="text-slate-500 text-[16px] mt-3">
-              Enter your credentials to access the SocietyHub console.
-            </p>
-          </div>
-
-          <form onSubmit={handleLoginSubmit} className="space-y-5">
-            <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                Email Address
-              </label>
-              <div className="relative flex items-center bg-white border border-slate-200 rounded-xl px-4 focus-within:ring-2 focus-within:ring-primary/10 focus-within:border-primary/50 transition-all">
-                <span className="material-symbols-outlined text-slate-400 text-[20px] select-none shrink-0">mail</span>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="e.g., admin@societyhub.com"
-                  className="bg-transparent border-none focus:ring-0 text-sm font-semibold w-full ml-3 py-3.5 outline-none text-slate-700"
-                />
+              <div className="flex items-center gap-2">
+                <h1 className="font-sans font-extrabold text-primary text-xl leading-none">SocietyHub</h1>
+                <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/10 select-none">
+                  v1.0
+                </span>
               </div>
+              <p className="text-[9px] text-slate-400 uppercase tracking-wider font-bold mt-1">Smart Living Starts Here</p>
+            </div>
+          </div>
+
+          {/* Form Card Container */}
+          <div className="bg-white border border-slate-200/80 p-8 md:p-10 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-6">
+            
+            {/* Screen 1: LOGIN FORM */}
+            {activeScreen === 'login' && (
+              <>
+                <div>
+                  <h2 className="font-sans font-bold text-3xl text-slate-900 tracking-tight leading-none">Welcome back</h2>
+                  <p className="text-slate-500 text-sm mt-2.5">
+                    Enter your credentials to access the SocietyHub console.
+                  </p>
+                </div>
+
+                {/* Custom Inline Notifications */}
+                {errorMessage && (
+                  <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl flex items-start gap-3">
+                    <span className="material-symbols-outlined text-red-500 shrink-0">error</span>
+                    <div className="text-xs font-semibold text-red-700 leading-relaxed">{errorMessage}</div>
+                  </div>
+                )}
+                {successMessage && (
+                  <div className="bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded-r-xl flex items-start gap-3">
+                    <span className="material-symbols-outlined text-emerald-500 shrink-0">check_circle</span>
+                    <div className="text-xs font-semibold text-emerald-700 leading-relaxed">{successMessage}</div>
+                  </div>
+                )}
+
+                <form onSubmit={handleLoginSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                      Email Address
+                    </label>
+                    <div className="relative flex items-center bg-white border border-slate-200 rounded-xl px-4 focus-within:ring-2 focus-within:ring-primary/10 focus-within:border-primary transition-all">
+                      <span className="material-symbols-outlined text-slate-400 text-[20px] select-none shrink-0">mail</span>
+                      <input
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="e.g., admin@societyhub.com"
+                        className="bg-transparent border-none focus:ring-0 text-sm font-semibold w-full ml-3 py-3.5 outline-none text-slate-700"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Password
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveScreen('forgot-password');
+                          setErrorMessage(null);
+                          setSuccessMessage(null);
+                        }}
+                        className="text-sm font-bold text-primary hover:underline transition-all hover:scale-[1.02] duration-200 cursor-pointer"
+                      >
+                        Forgot Password?
+                      </button>
+                    </div>
+                    <div className="relative flex items-center bg-white border border-slate-200 rounded-xl px-4 focus-within:ring-2 focus-within:ring-primary/10 focus-within:border-primary transition-all">
+                      <span className="material-symbols-outlined text-slate-400 text-[20px] select-none shrink-0">lock</span>
+                      <input
+                        type="password"
+                        required
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="bg-transparent border-none focus:ring-0 text-sm font-semibold w-full ml-3 py-3.5 outline-none text-slate-700"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <label className="flex items-center gap-2 text-xs font-bold text-slate-500 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={rememberMe}
+                        onChange={() => setRememberMe(!rememberMe)}
+                        className="w-4.5 h-4.5 text-primary bg-white rounded-lg focus:ring-primary cursor-pointer border border-slate-300 transition-colors"
+                      />
+                      Remember me for 30 days
+                    </label>
+                  </div>
+
+                  <div className="space-y-3 pt-2">
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full h-12 bg-primary text-white font-bold rounded-xl hover:bg-primary/95 transition-all text-sm uppercase tracking-wider shadow-sm flex items-center justify-center gap-2 hover:shadow-md cursor-pointer disabled:opacity-80"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                          Authenticating...
+                        </>
+                      ) : (
+                        'Sign In'
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveScreen('register');
+                        setErrorMessage(null);
+                        setRegMessage(null);
+                      }}
+                      className="w-full h-12 bg-transparent text-primary hover:bg-slate-50 hover:text-primary/90 font-bold rounded-xl border border-slate-200 hover:border-slate-300 transition-all text-sm uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      Request Resident Account
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
+
+            {/* Screen 2: FORGOT PASSWORD FORM */}
+            {activeScreen === 'forgot-password' && (
+              <>
+                <div>
+                  <h2 className="font-sans font-bold text-3xl text-slate-900 tracking-tight leading-none">Reset Password</h2>
+                  <p className="text-slate-500 text-sm mt-2.5">
+                    We'll send you instructions on how to reset your password.
+                  </p>
+                </div>
+
+                {/* Custom Inline Notifications */}
+                {errorMessage && (
+                  <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl flex items-start gap-3">
+                    <span className="material-symbols-outlined text-red-500 shrink-0">error</span>
+                    <div className="text-xs font-semibold text-red-700 leading-relaxed">{errorMessage}</div>
+                  </div>
+                )}
+                {successMessage && (
+                  <div className="bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded-r-xl flex items-start gap-3">
+                    <span className="material-symbols-outlined text-emerald-500 shrink-0">check_circle</span>
+                    <div className="text-xs font-semibold text-emerald-700 leading-relaxed">{successMessage}</div>
+                  </div>
+                )}
+
+                <form onSubmit={handleForgotPasswordSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                      Email Address
+                    </label>
+                    <div className="relative flex items-center bg-white border border-slate-200 rounded-xl px-4 focus-within:ring-2 focus-within:ring-primary/10 focus-within:border-primary transition-all">
+                      <span className="material-symbols-outlined text-slate-400 text-[20px] select-none shrink-0">mail</span>
+                      <input
+                        type="email"
+                        required
+                        value={forgotEmail}
+                        onChange={(e) => setForgotEmail(e.target.value)}
+                        placeholder="e.g., resident@societyhub.com"
+                        className="bg-transparent border-none focus:ring-0 text-sm font-semibold w-full ml-3 py-3.5 outline-none text-slate-700"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={forgotSubmitting}
+                    className="w-full h-12 bg-primary text-white font-bold rounded-xl hover:bg-primary/95 transition-all text-sm uppercase tracking-wider shadow-sm flex items-center justify-center gap-2 hover:shadow-md cursor-pointer disabled:opacity-80 pt-1"
+                  >
+                    {forgotSubmitting ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                        Sending instructions...
+                      </>
+                    ) : (
+                      'Send Reset Link'
+                    )}
+                  </button>
+
+                  <div className="text-center mt-6">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveScreen('login');
+                        setErrorMessage(null);
+                        setSuccessMessage(null);
+                      }}
+                      className="text-xs font-bold text-slate-500 hover:text-primary transition-all flex items-center justify-center gap-1 mx-auto cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+                      Back to Sign In
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
+
+            {/* Screen 3: REQUEST RESIDENT ACCOUNT FORM (UI Placeholder) */}
+            {activeScreen === 'register' && (
+              <>
+                <div>
+                  <h2 className="font-sans font-bold text-3xl text-slate-900 tracking-tight leading-none">Request Account</h2>
+                  <p className="text-slate-500 text-sm mt-2.5">
+                    Submit your details to request access to the resident portal.
+                  </p>
+                </div>
+
+                {/* Custom Inline Notifications */}
+                {errorMessage && (
+                  <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl flex items-start gap-3">
+                    <span className="material-symbols-outlined text-red-500 shrink-0">error</span>
+                    <div className="text-xs font-semibold text-red-700 leading-relaxed">{errorMessage}</div>
+                  </div>
+                )}
+                {regMessage && (
+                  <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-xl flex items-start gap-3">
+                    <span className="material-symbols-outlined text-blue-500 shrink-0">info</span>
+                    <div className="text-xs font-semibold text-blue-700 leading-relaxed">{regMessage}</div>
+                  </div>
+                )}
+
+                <form onSubmit={handleRegisterSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                        Full Name
+                      </label>
+                      <div className="relative flex items-center bg-white border border-slate-200 rounded-xl px-3 focus-within:ring-2 focus-within:ring-primary/10 focus-within:border-primary transition-all">
+                        <span className="material-symbols-outlined text-slate-400 text-[18px] select-none shrink-0">person</span>
+                        <input
+                          type="text"
+                          required
+                          value={regName}
+                          onChange={(e) => setRegName(e.target.value)}
+                          placeholder="John Doe"
+                          className="bg-transparent border-none focus:ring-0 text-xs font-semibold w-full ml-2 py-3 outline-none text-slate-700"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                        Email Address
+                      </label>
+                      <div className="relative flex items-center bg-white border border-slate-200 rounded-xl px-3 focus-within:ring-2 focus-within:ring-primary/10 focus-within:border-primary transition-all">
+                        <span className="material-symbols-outlined text-slate-400 text-[18px] select-none shrink-0">mail</span>
+                        <input
+                          type="email"
+                          required
+                          value={regEmail}
+                          onChange={(e) => setRegEmail(e.target.value)}
+                          placeholder="john@example.com"
+                          className="bg-transparent border-none focus:ring-0 text-xs font-semibold w-full ml-2 py-3 outline-none text-slate-700"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="md:col-span-1">
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                        Mobile Number
+                      </label>
+                      <div className="relative flex items-center bg-white border border-slate-200 rounded-xl px-3 focus-within:ring-2 focus-within:ring-primary/10 focus-within:border-primary transition-all">
+                        <span className="material-symbols-outlined text-slate-400 text-[18px] select-none shrink-0">phone</span>
+                        <input
+                          type="tel"
+                          required
+                          value={regPhone}
+                          onChange={(e) => setRegPhone(e.target.value)}
+                          placeholder="9876543210"
+                          className="bg-transparent border-none focus:ring-0 text-xs font-semibold w-full ml-2 py-3 outline-none text-slate-700"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="md:col-span-1">
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                        Society Block
+                      </label>
+                      <div className="relative flex items-center bg-white border border-slate-200 rounded-xl px-3 focus-within:ring-2 focus-within:ring-primary/10 focus-within:border-primary transition-all">
+                        <span className="material-symbols-outlined text-slate-400 text-[18px] select-none shrink-0">domain</span>
+                        <select
+                          value={regBlock}
+                          onChange={(e) => setRegBlock(e.target.value)}
+                          className="bg-transparent border-none focus:ring-0 text-xs font-semibold w-full ml-2 py-3 outline-none text-slate-700 cursor-pointer"
+                        >
+                          <option value="Block A">Block A</option>
+                          <option value="Block B">Block B</option>
+                          <option value="Block C">Block C</option>
+                          <option value="Block D">Block D</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="md:col-span-1">
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                        Flat Number
+                      </label>
+                      <div className="relative flex items-center bg-white border border-slate-200 rounded-xl px-3 focus-within:ring-2 focus-within:ring-primary/10 focus-within:border-primary transition-all">
+                        <span className="material-symbols-outlined text-slate-400 text-[18px] select-none shrink-0">door_front</span>
+                        <input
+                          type="text"
+                          required
+                          value={regFlat}
+                          onChange={(e) => setRegFlat(e.target.value)}
+                          placeholder="A-302"
+                          className="bg-transparent border-none focus:ring-0 text-xs font-semibold w-full ml-2 py-3 outline-none text-slate-700"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                        Create Password
+                      </label>
+                      <div className="relative flex items-center bg-white border border-slate-200 rounded-xl px-3 focus-within:ring-2 focus-within:ring-primary/10 focus-within:border-primary transition-all">
+                        <span className="material-symbols-outlined text-slate-400 text-[18px] select-none shrink-0">lock</span>
+                        <input
+                          type="password"
+                          required
+                          value={regPassword}
+                          onChange={(e) => setRegPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className="bg-transparent border-none focus:ring-0 text-xs font-semibold w-full ml-2 py-3 outline-none text-slate-700"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                        Confirm Password
+                      </label>
+                      <div className="relative flex items-center bg-white border border-slate-200 rounded-xl px-3 focus-within:ring-2 focus-within:ring-primary/10 focus-within:border-primary transition-all">
+                        <span className="material-symbols-outlined text-slate-400 text-[18px] select-none shrink-0">lock_reset</span>
+                        <input
+                          type="password"
+                          required
+                          value={regConfirmPassword}
+                          onChange={(e) => setRegConfirmPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className="bg-transparent border-none focus:ring-0 text-xs font-semibold w-full ml-2 py-3 outline-none text-slate-700"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full h-12 bg-primary text-white font-bold rounded-xl hover:bg-primary/95 transition-all text-sm uppercase tracking-wider shadow-sm flex items-center justify-center gap-2 hover:shadow-md cursor-pointer pt-1"
+                  >
+                    Submit Request
+                  </button>
+
+                  <div className="text-center mt-6">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveScreen('login');
+                        setErrorMessage(null);
+                        setRegMessage(null);
+                      }}
+                      className="text-xs font-bold text-slate-500 hover:text-primary transition-all flex items-center justify-center gap-1 mx-auto cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+                      Back to Sign In
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
+          </div>
+
+          {/* Premium Roles Deck Cards Section */}
+          <div className="mt-12 space-y-5">
+            <div className="flex items-center gap-3">
+              <div className="h-[1px] bg-slate-200 flex-1"></div>
+              <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider select-none">Demo Access Portals</span>
+              <div className="h-[1px] bg-slate-200 flex-1"></div>
             </div>
 
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  Password
-                </label>
-                <button
-                  type="button"
-                  onClick={() => alert('Demo Accounts (Password: password123):\n\n1. Admin: admin@societyhub.com\n2. Resident: resident@societyhub.com\n3. Security Guard: guard@societyhub.com')}
-                  className="text-xs font-bold text-primary hover:underline cursor-pointer"
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {rolesData.map((roleObj) => (
+                <div
+                  key={roleObj.role}
+                  className={`bg-white border border-slate-200/80 rounded-2xl p-5 flex flex-col justify-between shadow-[0_1px_3px_rgba(0,0,0,0.02)] transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${roleObj.hoverBorder} relative`}
                 >
-                  Demo Accounts
-                </button>
-              </div>
-              <div className="relative flex items-center bg-white border border-slate-200 rounded-xl px-4 focus-within:ring-2 focus-within:ring-primary/10 focus-within:border-primary/50 transition-all">
-                <span className="material-symbols-outlined text-slate-400 text-[20px] select-none shrink-0">lock</span>
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="bg-transparent border-none focus:ring-0 text-sm font-semibold w-full ml-3 py-3.5 outline-none text-slate-700"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between pt-1">
-              <label className="flex items-center gap-2 text-xs font-bold text-slate-500 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={() => setRememberMe(!rememberMe)}
-                  className="w-4.5 h-4.5 text-primary bg-white rounded-lg focus:ring-primary cursor-pointer border border-slate-300 transition-colors"
-                />
-                Remember me for 30 days
-              </label>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full h-12 bg-primary text-white font-bold rounded-xl hover:bg-primary/95 transition-all text-sm uppercase tracking-wider shadow-sm flex items-center justify-center gap-2"
-            >
-              {isSubmitting ? (
-                <>
-                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                  Authenticating...
-                </>
-              ) : (
-                'Sign In'
-              )}
-            </button>
-          </form>
-
-          {/* Developer guidance card */}
-          <div className="bg-white border border-slate-200/80 p-5 rounded-[16px] text-center space-y-2 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-            <p className="text-xs text-slate-400 font-semibold">
-              Enter any of the following emails (Password: <code className="bg-slate-50 border border-slate-200/80 px-1.5 py-0.5 rounded text-slate-600 font-mono text-[11px]">password123</code>):
-            </p>
-            <div className="text-[11px] text-primary font-bold flex flex-wrap justify-center gap-x-2">
-              <span className="cursor-pointer underline hover:text-primary/80" onClick={() => setEmail('admin@societyhub.com')}>admin@societyhub.com</span>
-              <span className="text-slate-300">•</span>
-              <span className="cursor-pointer underline hover:text-primary/80" onClick={() => setEmail('resident@societyhub.com')}>resident@societyhub.com</span>
-              <span className="text-slate-300">•</span>
-              <span className="cursor-pointer underline hover:text-primary/80" onClick={() => setEmail('guard@societyhub.com')}>guard@societyhub.com</span>
+                  {roleObj.recommended && (
+                    <span className="absolute top-[-9px] right-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[8px] font-extrabold uppercase px-2.5 py-0.5 rounded-full shadow-sm select-none tracking-wider border border-blue-500/10">
+                      Recommended
+                    </span>
+                  )}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full border ${roleObj.colorClass} select-none`}>
+                        {roleObj.role}
+                      </span>
+                      <span className="material-symbols-outlined text-slate-400 text-[18px] select-none">
+                        {roleObj.icon}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 leading-normal font-medium">
+                      {roleObj.desc}
+                    </p>
+                    <div className="pt-1">
+                      <p className="text-xs font-bold text-slate-700 select-all leading-snug break-all">
+                        {roleObj.email}
+                      </p>
+                      <p className="text-[10px] text-slate-400 font-medium mt-1 select-none">
+                        Password: <code className="bg-slate-50 px-1 py-0.5 rounded text-slate-600 font-mono text-[9px]">password123</code>
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleUseAccount(roleObj.email)}
+                    className="w-full mt-4 py-2 bg-slate-50 hover:bg-primary hover:text-white border border-slate-100 hover:border-primary rounded-xl text-[10px] font-bold text-slate-600 transition-all uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer hover:shadow-sm"
+                  >
+                    <span className="material-symbols-outlined text-[12px] font-bold">bolt</span>
+                    Use Account
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
+
         </div>
       </div>
     </div>
