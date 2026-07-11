@@ -28,7 +28,7 @@ export default function App() {
     if (stored) {
       try {
         return JSON.parse(stored);
-      } catch (e) {}
+      } catch (e) { }
     }
     return {
       name: 'Sarah Chen',
@@ -52,7 +52,7 @@ export default function App() {
     if (loggedOut === 'true') {
       return false;
     }
-    return true; // Default to true for demo view fallback
+    return false; // Default to true for demo view fallback
   });
 
   // Current tab state
@@ -144,78 +144,6 @@ export default function App() {
     }
   }, [isLoggedIn]);
 
-  // Path-to-Role Sync Effect for deep-linking
-  React.useEffect(() => {
-    const isLoggedOut = localStorage.getItem('sh_logged_out') === 'true';
-    if (isLoggedOut) {
-      if (isLoggedIn) {
-        setIsLoggedIn(false);
-      }
-      if (location.pathname !== '/') {
-        navigate('/');
-      }
-      return;
-    }
-
-    const path = location.pathname;
-    if (path.startsWith('/resident')) {
-      if (currentUser.role !== 'Resident') {
-        const u = {
-          user_id: 2,
-          name: 'Arjun Kapoor',
-          role: 'Resident',
-          email: 'arjun.k@example.com',
-          phone: '+91-99887-76655',
-          department: 'Resident Block A',
-          twoFactor: false,
-          alerts: { complaints: true, ledger: true, gate: true }
-        };
-        setCurrentUser(u);
-        localStorage.setItem('sh_user', JSON.stringify(u));
-        setIsLoggedIn(true);
-      }
-    } else if (path.startsWith('/security')) {
-      if (currentUser.role !== 'Security Guard') {
-        const u = {
-          user_id: 3,
-          name: 'Vikram Singh',
-          role: 'Security Guard',
-          email: 'vikram.s@societyhub.com',
-          phone: '+91-98765-11223',
-          department: 'Security Wing',
-          twoFactor: false,
-          alerts: { complaints: true, ledger: false, gate: true }
-        };
-        setCurrentUser(u);
-        localStorage.setItem('sh_user', JSON.stringify(u));
-        setIsLoggedIn(true);
-      }
-    } else if (path.startsWith('/admin')) {
-      if (currentUser.role !== 'Society Admin') {
-        const u = {
-          user_id: 1,
-          name: 'Sarah Chen',
-          role: 'Society Admin',
-          email: 'sarah.chen@societyhub.com',
-          phone: '+91-98765-43210',
-          department: 'General Administration',
-          twoFactor: false,
-          alerts: { complaints: true, ledger: false, gate: true }
-        };
-        setCurrentUser(u);
-        localStorage.setItem('sh_user', JSON.stringify(u));
-        setIsLoggedIn(true);
-      }
-    } else if (path === '/' && isLoggedIn) {
-      if (currentUser.role === 'Resident') {
-        navigate('/resident/dashboard');
-      } else if (currentUser.role === 'Security Guard') {
-        navigate('/security/dashboard');
-      } else {
-        navigate('/admin/dashboard');
-      }
-    }
-  }, [location.pathname, currentUser.role, isLoggedIn, navigate]);
 
   // Overlay Modals State management
   const [activeModal, setActiveModal] = useState<'addResident' | 'addVisitor' | 'raiseComplaint' | 'updateComplaint' | 'assignComplaint' | 'recordPayment' | 'generateBill' | null>(null);
@@ -367,7 +295,7 @@ export default function App() {
 
     setResidents([newResident, ...residents]);
     alert(`Resident "${resName}" successfully registered to directory.`);
-    
+
     // Reset form & close
     setResName('');
     setResPhone('');
@@ -395,8 +323,8 @@ export default function App() {
 
     try {
       setIsLoading(true);
-      const targetResident = residents.find(r => 
-        r.flat.toLowerCase() === visFlat.toLowerCase() || 
+      const targetResident = residents.find(r =>
+        r.flat.toLowerCase() === visFlat.toLowerCase() ||
         r.flat.replace('-', '').toLowerCase() === visFlat.replace('-', '').toLowerCase()
       );
       const visiting_user_id = targetResident ? parseInt(targetResident.id.replace('RES-', '')) : 2;
@@ -429,8 +357,8 @@ export default function App() {
   const handlePortalAddVisitor = async (v: any) => {
     try {
       setIsLoading(true);
-      const targetResident = residents.find(r => 
-        r.flat.toLowerCase() === v.flat.toLowerCase() || 
+      const targetResident = residents.find(r =>
+        r.flat.toLowerCase() === v.flat.toLowerCase() ||
         r.flat.replace('-', '').toLowerCase() === v.flat.replace('-', '').toLowerCase()
       );
       const visiting_user_id = targetResident ? parseInt(targetResident.id.replace('RES-', '')) : ((currentUser as any).user_id || 2);
@@ -467,8 +395,8 @@ export default function App() {
 
     try {
       setIsLoading(true);
-      const targetResident = residents.find(r => 
-        r.name.toLowerCase().includes(compResidentName.toLowerCase()) || 
+      const targetResident = residents.find(r =>
+        r.name.toLowerCase().includes(compResidentName.toLowerCase()) ||
         r.flat.toLowerCase() === compFlat.toLowerCase()
       );
       const user_id = targetResident ? parseInt(targetResident.id.replace('RES-', '')) : ((currentUser as any).user_id || 2);
@@ -527,9 +455,9 @@ export default function App() {
     e.preventDefault();
     if (!selectedItemId) return;
 
-    setComplaints(complaints.map(c => 
-      c.id === selectedItemId 
-        ? { ...c, assignedTo: assignStaff, priority: assignPriority, status: 'In Progress' } 
+    setComplaints(complaints.map(c =>
+      c.id === selectedItemId
+        ? { ...c, assignedTo: assignStaff, priority: assignPriority, status: 'In Progress' }
         : c
     ));
 
@@ -552,9 +480,9 @@ export default function App() {
     e.preventDefault();
     if (!selectedItemId) return;
 
-    setComplaints(complaints.map(c => 
-      c.id === selectedItemId 
-        ? { ...c, status: updateCompStatus, remarks: updateRemarks || undefined } 
+    setComplaints(complaints.map(c =>
+      c.id === selectedItemId
+        ? { ...c, status: updateCompStatus, remarks: updateRemarks || undefined }
         : c
     ));
 
@@ -797,7 +725,7 @@ export default function App() {
                 close
               </button>
             </div>
-            
+
             <nav className="flex-1 space-y-2">
               {[
                 { name: 'dashboard' as TabName, label: 'Dashboard', icon: 'dashboard' },
@@ -815,9 +743,8 @@ export default function App() {
                     setSearchQuery('');
                     setIsMobileMenuOpen(false);
                   }}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left font-semibold ${
-                    activeTab === item.name ? 'bg-secondary-container text-on-secondary-container' : 'text-on-surface-variant'
-                  }`}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left font-semibold ${activeTab === item.name ? 'bg-secondary-container text-on-secondary-container' : 'text-on-surface-variant'
+                    }`}
                 >
                   <span className="material-symbols-outlined">{item.icon}</span>
                   <span>{item.label}</span>
@@ -826,8 +753,8 @@ export default function App() {
             </nav>
 
             <div className="border-t border-outline-variant pt-4 space-y-2">
-              <button 
-                onClick={handleLogout} 
+              <button
+                onClick={handleLogout}
                 className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-error hover:bg-error-container/10 font-bold"
               >
                 <span className="material-symbols-outlined">logout</span>
@@ -908,18 +835,18 @@ export default function App() {
               <h3 className="font-sans font-bold text-lg text-primary flex items-center gap-2">
                 <span className="material-symbols-outlined">
                   {activeModal === 'addResident' ? 'group_add' :
-                   activeModal === 'addVisitor' ? 'person_add' :
-                   activeModal === 'raiseComplaint' ? 'report_problem' :
-                   activeModal === 'updateComplaint' ? 'published_with_changes' :
-                   activeModal === 'assignComplaint' ? 'supervisor_account' :
-                   activeModal === 'recordPayment' ? 'check_circle' : 'payments'}
+                    activeModal === 'addVisitor' ? 'person_add' :
+                      activeModal === 'raiseComplaint' ? 'report_problem' :
+                        activeModal === 'updateComplaint' ? 'published_with_changes' :
+                          activeModal === 'assignComplaint' ? 'supervisor_account' :
+                            activeModal === 'recordPayment' ? 'check_circle' : 'payments'}
                 </span>
                 {activeModal === 'addResident' ? 'Add New Resident' :
-                 activeModal === 'addVisitor' ? 'Check-in Visitor Pass' :
-                 activeModal === 'raiseComplaint' ? 'Raise Complaint Ticket' :
-                 activeModal === 'updateComplaint' ? 'Update Complaint Status' :
-                 activeModal === 'assignComplaint' ? 'Assign Ticket' :
-                 activeModal === 'recordPayment' ? 'Record Ledger Payment' : 'Generate Maintenance Bill'}
+                  activeModal === 'addVisitor' ? 'Check-in Visitor Pass' :
+                    activeModal === 'raiseComplaint' ? 'Raise Complaint Ticket' :
+                      activeModal === 'updateComplaint' ? 'Update Complaint Status' :
+                        activeModal === 'assignComplaint' ? 'Assign Ticket' :
+                          activeModal === 'recordPayment' ? 'Record Ledger Payment' : 'Generate Maintenance Bill'}
               </h3>
               <button
                 onClick={() => {
