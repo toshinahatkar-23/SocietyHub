@@ -190,7 +190,7 @@ export default function ComplaintsView({
                         {comp.status === 'Open' ? (
                           <button
                             title="Assign to maintenance staff"
-                            onClick={() => onTriggerModal('assignComplaint')}
+                            onClick={() => onTriggerModal('assignComplaint', comp.id)}
                             className="text-slate-400 hover:text-slate-800 hover:bg-slate-50 p-1.5 rounded-xl transition-all material-symbols-outlined cursor-pointer text-[20px]"
                           >
                             person_add
@@ -198,7 +198,7 @@ export default function ComplaintsView({
                         ) : (
                           <button
                             title="Update complaint progress"
-                            onClick={() => onTriggerModal('updateComplaint')}
+                            onClick={() => onTriggerModal('updateComplaint', comp.id)}
                             className="text-slate-400 hover:text-slate-800 hover:bg-slate-50 p-1.5 rounded-xl transition-all material-symbols-outlined cursor-pointer text-[20px]"
                           >
                             edit
