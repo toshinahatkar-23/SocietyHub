@@ -20,10 +20,12 @@ import {
   Eye,
   EyeOff
 } from 'lucide-react';
+import apiService from '../services/api';
 
 interface ProfileViewProps {
   portal: 'admin' | 'resident' | 'security';
   currentUser: {
+    user_id?: number;
     name: string;
     role: string;
     email: string;
@@ -95,19 +97,43 @@ export default function ProfileView({
     setTimeout(() => setSaveSuccess(null), 3000);
   };
 
-  const handleProfileSubmit = (e: React.FormEvent) => {
+  const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onUpdateUser({
-      name,
-      email,
-      phone,
-      department
-    });
-    triggerFeedback('Personal and contact information updated successfully!');
+    if (!currentUser.user_id) {
+      alert('Error: User context is missing user ID.');
+      return;
+    }
+    try {
+      const res = await apiService.updateProfile({
+        user_id: currentUser.user_id,
+        name,
+        email,
+        phone
+      });
+      onUpdateUser({
+        name,
+        email,
+        phone,
+        department
+      });
+      // Synchronize local storage to persist the changed values across refresh
+      const stored = localStorage.getItem('sh_user');
+      if (stored) {
+        const u = JSON.parse(stored);
+        localStorage.setItem('sh_user', JSON.stringify({ ...u, name, email, phone }));
+      }
+      triggerFeedback(res.message || 'Personal and contact information updated successfully!');
+    } catch (err: any) {
+      alert(err.response?.data?.error || err.message || 'Failed to update profile.');
+    }
   };
 
-  const handlePasswordSubmit = (e: React.FormEvent) => {
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentUser.user_id) {
+      alert('Error: User context is missing user ID.');
+      return;
+    }
     if (!currentPassword || !newPassword || !confirmPassword) {
       alert('Please fill out all password fields.');
       return;
@@ -116,10 +142,19 @@ export default function ProfileView({
       alert('Error: New Password and Confirm Password do not match!');
       return;
     }
-    triggerFeedback('Security password updated successfully!');
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
+    try {
+      const res = await apiService.changePassword({
+        user_id: currentUser.user_id,
+        current_password: currentPassword,
+        new_password: newPassword
+      });
+      triggerFeedback(res.message || 'Security password updated successfully!');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err: any) {
+      alert(err.response?.data?.error || err.message || 'Failed to change password.');
+    }
   };
 
   const handleToggleAlert = (key: keyof typeof alerts) => {

@@ -858,6 +858,106 @@ def update_complaint_status(complaint_id):
         return jsonify({"error": str(e)}), 500
 
 
+# ==========================================
+# USER PROFILE & SETTINGS API
+# ==========================================
+
+@app.route('/api/profile/<int:user_id>', methods=['GET'])
+def get_profile(user_id):
+    """Fetches user details from the database."""
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            sql = "SELECT user_id, name, email, role, phone, block, flat_number, flat_type, status FROM users WHERE user_id = %s"
+            cursor.execute(sql, (user_id,))
+            user = cursor.fetchone()
+        conn.close()
+        if user:
+            return jsonify(user), 200
+        else:
+            return jsonify({"error": "User not found"}), 404
+    except Exception as e:
+        print(f"[Error] Failed to fetch user profile: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/profile/update', methods=['POST'])
+def update_profile():
+    """Updates user name, email, and phone in the database."""
+    data = request.get_json() or {}
+    user_id = data.get('user_id')
+    name = data.get('name')
+    email = data.get('email')
+    phone = data.get('phone')
+    
+    if not user_id or not name or not email or not phone:
+        return jsonify({"error": "Missing required fields"}), 400
+        
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            # Check if email is already taken by another user
+            cursor.execute("SELECT user_id FROM users WHERE email = %s AND user_id != %s", (email, user_id))
+            if cursor.fetchone():
+                conn.close()
+                return jsonify({"error": "Email is already in use by another account."}), 400
+                
+            sql = """
+                UPDATE users 
+                SET name = %s, email = %s, phone = %s 
+                WHERE user_id = %s
+            """
+            cursor.execute(sql, (name, email, phone, user_id))
+        conn.close()
+        
+        # Log profile update activity
+        log_activity(user_id, 'Profile Updated', f"Updated profile details (Name: {name}, Email: {email}).")
+        return jsonify({"message": "Profile updated successfully"}), 200
+    except Exception as e:
+        print(f"[Error] Failed to update profile: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/profile/change-password', methods=['POST'])
+def change_password():
+    """Changes user password after verifying current password."""
+    data = request.get_json() or {}
+    user_id = data.get('user_id')
+    current_password = data.get('current_password')
+    new_password = data.get('new_password')
+    
+    if not user_id or not current_password or not new_password:
+        return jsonify({"error": "Missing required fields"}), 400
+        
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT password FROM users WHERE user_id = %s", (user_id,))
+            user = cursor.fetchone()
+            if not user:
+                conn.close()
+                return jsonify({"error": "User not found"}), 404
+                
+            hashed_pw = user['password'].encode('utf-8')
+            if not bcrypt.checkpw(current_password.encode('utf-8'), hashed_pw):
+                conn.close()
+                return jsonify({"error": "Incorrect current password"}), 400
+                
+            # Hash new password using bcrypt
+            salt = bcrypt.gensalt()
+            new_hashed_pw = bcrypt.hashpw(new_password.encode('utf-8'), salt).decode('utf-8')
+            
+            cursor.execute("UPDATE users SET password = %s WHERE user_id = %s", (new_hashed_pw, user_id))
+        conn.close()
+        
+        # Log password update activity
+        log_activity(user_id, 'Password Changed', "Changed security credentials password.")
+        return jsonify({"message": "Password changed successfully"}), 200
+    except Exception as e:
+        print(f"[Error] Failed to change password: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 # Running Flask application
 if __name__ == '__main__':
     # Standard development server bindings

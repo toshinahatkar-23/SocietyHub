@@ -180,6 +180,29 @@ export default function App() {
       const statsData = await apiService.getDashboardStats();
       setStats(statsData);
 
+      // 8. Fetch current user profile details to ensure synchronization with DB on refresh
+      if (currentUser && currentUser.user_id) {
+        try {
+          const freshUser = await apiService.getProfile(currentUser.user_id);
+          if (freshUser) {
+            const updatedUser = {
+              ...currentUser,
+              name: freshUser.name,
+              email: freshUser.email,
+              phone: freshUser.phone,
+              block: freshUser.block || '',
+              flat_number: freshUser.flat_number || '',
+              flat_type: freshUser.flat_type || '',
+              role: freshUser.role === 'admin' ? 'Society Admin' : freshUser.role === 'guard' ? 'Security Guard' : freshUser.role === 'staff' ? 'Maintenance Staff' : 'Resident'
+            };
+            setCurrentUser(updatedUser);
+            localStorage.setItem('sh_user', JSON.stringify(updatedUser));
+          }
+        } catch (err) {
+          console.error('Failed to sync user profile:', err);
+        }
+      }
+
     } catch (err: any) {
       console.error('Failed to sync backend data:', err);
     } finally {

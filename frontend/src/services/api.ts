@@ -186,6 +186,21 @@ export const apiService = {
     const response = await apiClient.post<any>(`/api/complaints/${id}/status`, data);
     return response.data;
   },
+
+  async getProfile(userId: number): Promise<any> {
+    const response = await apiClient.get<any>(`/api/profile/${userId}`);
+    return response.data;
+  },
+
+  async updateProfile(data: { user_id: number; name: string; email: string; phone: string }): Promise<any> {
+    const response = await apiClient.post<any>('/api/profile/update', data);
+    return response.data;
+  },
+
+  async changePassword(data: { user_id: number; current_password: string; new_password: string }): Promise<any> {
+    const response = await apiClient.post<any>('/api/profile/change-password', data);
+    return response.data;
+  },
 };
 
 export interface RegistrationRequestResponse {
