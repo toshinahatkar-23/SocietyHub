@@ -65,6 +65,36 @@ export default function MaintenanceView({
     }
   };
 
+  const handleExportLedger = () => {
+    if (bills.length === 0) {
+      alert('No maintenance records available to export.');
+      return;
+    }
+    const headers = ['Bill ID', 'Flat', 'Resident Name', 'Billing Month', 'Amount', 'Due Date', 'Status'];
+    const csvContent = [
+      headers.join(','),
+      ...bills.map(b => [
+        `"${b.id}"`,
+        `"${b.flat}"`,
+        `"${b.residentName.replace(/"/g, '""')}"`,
+        `"${b.billingMonth}"`,
+        b.amount,
+        `"${b.dueDate || ''}"`,
+        `"${b.status}"`
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'society_maintenance_ledger.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="px-10 py-10 max-w-[1536px] mx-auto w-full space-y-10 overflow-y-auto animate-fade-in">
       {/* Page Header */}
@@ -82,7 +112,7 @@ export default function MaintenanceView({
         </div>
         <div className="flex items-center gap-3.5">
           <button
-            onClick={() => alert('Exporting billing ledger CSV/PDF reports...')}
+            onClick={handleExportLedger}
             className="flex items-center gap-2 h-11 px-5 bg-white text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95 cursor-pointer border border-slate-200 shadow-none uppercase tracking-wider"
           >
             <span className="material-symbols-outlined text-[18px]">download</span>
