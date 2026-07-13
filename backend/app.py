@@ -753,13 +753,8 @@ def reject_registration_request(request_id):
                 conn.close()
                 return jsonify({"error": f"Registration request is already {req['status']}."}), 400
 
-            # 2. Mark the request as Rejected in registration_requests
-            sql_update = """
-                UPDATE registration_requests
-                SET status = 'Rejected', reviewed_at = NOW(), reviewed_by = 1
-                WHERE request_id = %s
-            """
-            cursor.execute(sql_update, (request_id,))
+            # 2. Delete the request from registration_requests
+            cursor.execute("DELETE FROM registration_requests WHERE request_id = %s", (request_id,))
         conn.close()
         # Log rejection activity
         log_activity(1, 'Request Rejected', f"Rejected registration request for {req['full_name']}.")
