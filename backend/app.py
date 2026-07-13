@@ -334,8 +334,74 @@ def get_residents():
         mock_residents = [
             {"user_id": 2, "name": "Arjun Kapoor", "email": "arjun.k@example.com", "phone": "9988776655", "block": "Block A", "flat_number": "A-402", "flat_type": "3 BHK", "status": "active"},
             {"user_id": 5, "name": "Neha Sharma", "email": "neha.sharma@example.com", "phone": "9888877777", "block": "Block B", "flat_number": "B-105", "flat_type": "2 BHK", "status": "active"}
-        ]
+            ]
         return jsonify(mock_residents), 200
+
+
+@app.route('/api/residents', methods=['POST'])
+def add_resident():
+    """Registers a new resident into the database."""
+    data = request.get_json() or {}
+    name = data.get('name')
+    email = data.get('email')
+    phone = data.get('phone')
+    block = data.get('block')
+    flat_number = data.get('flat_number')
+    flat_type = data.get('flat_type', '3 BHK')
+    status = data.get('status', 'active').lower()
+    
+    if not name or not email or not phone or not flat_number:
+        return jsonify({"error": "Missing required fields"}), 400
+        
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            # Check if email is already taken
+            cursor.execute("SELECT 1 FROM users WHERE email = %s", (email,))
+            if cursor.fetchone():
+                conn.close()
+                return jsonify({"error": "A user with this email address already exists."}), 400
+                
+            # Hash default password "password123"
+            salt = bcrypt.gensalt()
+            hashed_pw = bcrypt.hashpw("password123".encode('utf-8'), salt).decode('utf-8')
+            
+            sql = """
+                INSERT INTO users (name, email, password, role, phone, block, flat_number, flat_type, status)
+                VALUES (%s, %s, %s, 'resident', %s, %s, %s, %s, %s)
+            """
+            cursor.execute(sql, (name, email, hashed_pw, phone, block, flat_number, flat_type, status))
+        conn.close()
+        log_activity(1, 'Resident Added', f"Added new resident {name} (Flat {flat_number}).")
+        return jsonify({"message": "Resident added successfully"}), 201
+    except Exception as e:
+        print(f"[Error] Failed to add resident: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/residents/<int:user_id>', methods=['DELETE'])
+def delete_resident(user_id):
+    """Deletes a resident record from the database."""
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            # Get resident name for activity log
+            cursor.execute("SELECT name, flat_number FROM users WHERE user_id = %s", (user_id,))
+            res = cursor.fetchone()
+            if not res:
+                conn.close()
+                return jsonify({"error": "Resident not found"}), 404
+            name = res['name']
+            flat = res['flat_number']
+            
+            # Delete user from database
+            cursor.execute("DELETE FROM users WHERE user_id = %s", (user_id,))
+        conn.close()
+        log_activity(1, 'Resident Removed', f"Removed resident {name} (Flat {flat}).")
+        return jsonify({"message": "Resident removed successfully"}), 200
+    except Exception as e:
+        print(f"[Error] Failed to remove resident: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 # ==========================================

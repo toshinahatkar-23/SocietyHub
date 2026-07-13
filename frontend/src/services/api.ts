@@ -201,6 +201,16 @@ export const apiService = {
     const response = await apiClient.post<any>('/api/profile/change-password', data);
     return response.data;
   },
+
+  async addResident(data: { name: string; email: string; phone: string; block?: string; flat_number: string; flat_type?: string; status?: string }): Promise<any> {
+    const response = await apiClient.post<any>('/api/residents', data);
+    return response.data;
+  },
+
+  async deleteResident(userId: number): Promise<any> {
+    const response = await apiClient.delete<any>(`/api/residents/${userId}`);
+    return response.data;
+  },
 };
 
 export interface RegistrationRequestResponse {

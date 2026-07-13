@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { TabName, Resident, Visitor, Complaint, MaintenanceBill, Notice, NoticeType, ComplaintCategory, ComplaintPriority, ComplaintStatus, BillingStatus, RegistrationRequest } from './types';
-import {
-  INITIAL_BILLS
-} from './data';
+
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import DashboardOverview from './components/DashboardView';
@@ -358,41 +356,56 @@ export default function App() {
   };
 
   // 2. Residents View Actions
-  const handleAddResidentSubmit = (e: React.FormEvent) => {
+  const handleAddResidentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!resName || !resPhone || !resFlat) {
       alert('Please fill in name, contact phone and flat number.');
       return;
     }
 
-    const newResident: Resident = {
-      id: `RES-${Math.floor(1000 + Math.random() * 9000)}`,
-      name: resName,
-      phone: resPhone,
-      email: resEmail || `${resName.toLowerCase().replace(/\s+/g, '')}@example.com`,
-      block: resBlock,
-      flat: resFlat,
-      flatType: resType,
-      status: resStatus
-    };
+    try {
+      setIsLoading(true);
+      await apiService.addResident({
+        name: resName,
+        phone: resPhone,
+        email: resEmail || `${resName.toLowerCase().replace(/\s+/g, '')}@example.com`,
+        block: resBlock,
+        flat_number: resFlat,
+        flat_type: resType,
+        status: resStatus === 'Active' ? 'active' : 'inactive'
+      });
+      await loadAllData();
+      alert(`Resident "${resName}" successfully registered to directory.`);
 
-    setResidents([newResident, ...residents]);
-    alert(`Resident "${resName}" successfully registered to directory.`);
-
-    // Reset form & close
-    setResName('');
-    setResPhone('');
-    setResEmail('');
-    setResBlock('Block A');
-    setResFlat('');
-    setResType('3BHK');
-    setResStatus('Active');
-    setActiveModal(null);
+      // Reset form & close
+      setResName('');
+      setResPhone('');
+      setResEmail('');
+      setResBlock('Block A');
+      setResFlat('');
+      setResType('3BHK');
+      setResStatus('Active');
+      setActiveModal(null);
+    } catch (err: any) {
+      alert(err.response?.data?.error || err.message || 'Failed to add resident.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleDeleteResident = (id: string) => {
+  const handleDeleteResident = async (id: string) => {
     if (confirm('Are you sure you want to remove this resident record from SocietyHub?')) {
-      setResidents(residents.filter(r => r.id !== id));
+      try {
+        setIsLoading(true);
+        const numericId = parseInt(id.replace('RES-', ''));
+        await apiService.deleteResident(numericId);
+        await loadAllData();
+        alert('Resident record removed successfully.');
+      } catch (err: any) {
+        alert(err.response?.data?.error || err.message || 'Failed to remove resident.');
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
