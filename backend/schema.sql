@@ -91,6 +91,7 @@ CREATE TABLE `complaints` (
   `image_path` VARCHAR(255) DEFAULT NULL,
   `status` ENUM('open', 'in_progress', 'resolved') NOT NULL DEFAULT 'open',
   `assigned_to` INT DEFAULT NULL,
+  `priority` ENUM('Low', 'Medium', 'High', 'Critical') NOT NULL DEFAULT 'Medium',
   `remarks` TEXT DEFAULT NULL,
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -102,10 +103,10 @@ CREATE TABLE `complaints` (
 --
 -- Dumping data for table `complaints`
 --
-INSERT INTO `complaints` (`complaint_id`, `user_id`, `category`, `description`, `image_path`, `status`, `assigned_to`, `remarks`, `created_at`, `updated_at`) VALUES
-(1, 2, 'Plumbing', 'Water leakage in the master bedroom bathroom ceiling.', NULL, 'in_progress', 4, 'Plumber has inspected the leakage, parts ordered.', '2026-07-09 10:00:00', '2026-07-10 17:13:51'),
-(2, 5, 'Electrical', 'Clubhouse backup generator switch failure in corridor.', NULL, 'open', NULL, NULL, '2026-07-10 08:30:00', '2026-07-10 17:13:51'),
-(3, 2, 'Cleaning', 'Need Home cleaning staff', NULL, 'open', NULL, NULL, '2026-07-10 19:37:30', '2026-07-10 19:37:30');
+INSERT INTO `complaints` (`complaint_id`, `user_id`, `category`, `description`, `image_path`, `status`, `assigned_to`, `priority`, `remarks`, `created_at`, `updated_at`) VALUES
+(1, 2, 'Plumbing', 'Water leakage in the master bedroom bathroom ceiling.', NULL, 'in_progress', 4, 'High', 'Plumber has inspected the leakage, parts ordered.', '2026-07-09 10:00:00', '2026-07-10 17:13:51'),
+(2, 5, 'Electrical', 'Clubhouse backup generator switch failure in corridor.', NULL, 'open', NULL, 'Medium', NULL, '2026-07-10 08:30:00', '2026-07-10 17:13:51'),
+(3, 2, 'Cleaning', 'Need Home cleaning staff', NULL, 'open', NULL, 'Low', NULL, '2026-07-10 19:37:30', '2026-07-10 19:37:30');
 
 --
 -- Table structure for table `maintenance_bills`

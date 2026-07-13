@@ -127,7 +127,7 @@ export default function App() {
         description: c.description,
         status: c.status === 'in_progress' ? 'In Progress' : c.status === 'resolved' ? 'Resolved' : 'Open',
         assignedTo: c.assigned_staff || 'Unassigned',
-        priority: 'Medium',
+        priority: (c.priority || 'Medium') as any,
         reportedAt: c.created_at,
         remarks: c.remarks || undefined
       }));
@@ -487,7 +487,8 @@ export default function App() {
       await apiService.addComplaint({
         user_id: user_id,
         category: compCategory,
-        description: compDesc
+        description: compDesc,
+        priority: compPriority
       });
 
       await loadAllData();
@@ -513,7 +514,8 @@ export default function App() {
       await apiService.addComplaint({
         user_id: (currentUser as any).user_id || 2,
         category: newCompData.category,
-        description: newCompData.description
+        description: newCompData.description,
+        priority: newCompData.priority
       });
       await loadAllData();
       alert('Complaint logged successfully.');

@@ -414,7 +414,7 @@ def handle_complaints():
             conn = get_db_connection()
             with conn.cursor() as cursor:
                 sql = """
-                    SELECT c.complaint_id, c.category, c.description, c.status, c.remarks, c.created_at,
+                    SELECT c.complaint_id, c.category, c.description, c.status, c.remarks, c.priority, c.created_at,
                            u.name AS resident_name, u.flat_number, s.name AS assigned_staff
                     FROM complaints c
                     JOIN users u ON c.user_id = u.user_id
@@ -428,8 +428,8 @@ def handle_complaints():
         except Exception as e:
             print(f"[Error] Failed to fetch complaints: {e}")
             mock_complaints = [
-                {"complaint_id": 1, "category": "Plumbing", "description": "Water leakage in the master bedroom bathroom ceiling.", "status": "in_progress", "remarks": "Plumber has inspected the leakage, parts ordered.", "resident_name": "Arjun Kapoor", "flat_number": "A-402", "assigned_staff": "Ramesh Kumar", "created_at": "2026-07-09 10:00:00"},
-                {"complaint_id": 2, "category": "Electrical", "description": "Clubhouse backup generator switch failure in corridor.", "status": "open", "remarks": None, "resident_name": "Neha Sharma", "flat_number": "B-105", "assigned_staff": None, "created_at": "2026-07-10 08:30:00"}
+                {"complaint_id": 1, "category": "Plumbing", "description": "Water leakage in the master bedroom bathroom ceiling.", "status": "in_progress", "remarks": "Plumber has inspected the leakage, parts ordered.", "resident_name": "Arjun Kapoor", "flat_number": "A-402", "assigned_staff": "Ramesh Kumar", "priority": "High", "created_at": "2026-07-09 10:00:00"},
+                {"complaint_id": 2, "category": "Electrical", "description": "Clubhouse backup generator switch failure in corridor.", "status": "open", "remarks": None, "resident_name": "Neha Sharma", "flat_number": "B-105", "assigned_staff": None, "priority": "Medium", "created_at": "2026-07-10 08:30:00"}
             ]
             return jsonify(mock_complaints), 200
 
@@ -438,6 +438,7 @@ def handle_complaints():
         user_id = data.get('user_id')
         category = data.get('category')
         description = data.get('description')
+        priority = data.get('priority', 'Medium')
         
         if not user_id or not category or not description:
             return jsonify({"error": "Missing required fields"}), 400
@@ -445,8 +446,8 @@ def handle_complaints():
         try:
             conn = get_db_connection()
             with conn.cursor() as cursor:
-                sql = "INSERT INTO complaints (user_id, category, description) VALUES (%s, %s, %s)"
-                cursor.execute(sql, (user_id, category, description))
+                sql = "INSERT INTO complaints (user_id, category, description, priority) VALUES (%s, %s, %s, %s)"
+                cursor.execute(sql, (user_id, category, description, priority))
             conn.close()
             # Log the raised complaint activity
             log_activity(user_id, 'Complaint Raised', f"Raised new complaint in category '{category}'.")
@@ -817,10 +818,10 @@ def assign_complaint(complaint_id):
             
             sql = """
                 UPDATE complaints 
-                SET assigned_to = %s, status = 'in_progress'
+                SET assigned_to = %s, priority = %s, status = 'in_progress'
                 WHERE complaint_id = %s
             """
-            cursor.execute(sql, (assigned_to, complaint_id))
+            cursor.execute(sql, (assigned_to, priority, complaint_id))
         conn.close()
         log_activity(1, 'Complaint Assigned', f"Assigned complaint ticket #{complaint_id} to staff member {staff_name}.")
         return jsonify({"message": "Complaint assigned successfully"}), 200
