@@ -19,16 +19,10 @@ def get_db_connection():
     Utility function to create a connection to the MySQL database.
     Throws an exception if database is not reachable.
     """
-    return pymysql.connect(
-        host=Config.DB_HOST,
-        user=Config.DB_USER,
-        password=Config.DB_PASSWORD,
-        database=Config.DB_NAME,
-        port=Config.DB_PORT,
-        charset='utf8mb4',
-        cursorclass=pymysql.cursors.DictCursor,
-        autocommit=True
-    )
+    params = Config.get_db_connection_params()
+    params['cursorclass'] = pymysql.cursors.DictCursor
+    return pymysql.connect(**params)
+
 
 # ==========================================
 # HEALTH AND API INFRASTRUCTURE ENDPOINTS

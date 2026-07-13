@@ -1,4 +1,5 @@
 import os
+import ssl
 from dotenv import load_dotenv
 
 # Load environment variables from .env if present
@@ -19,11 +20,12 @@ class Config:
     DB_PASSWORD = os.getenv('DB_PASSWORD', '')
     DB_NAME = os.getenv('DB_NAME', 'societyhub')
     DB_PORT = int(os.getenv('DB_PORT', 3307))
+    DB_SSL = os.getenv('DB_SSL', 'False').lower() in ('true', '1', 't', 'y', 'yes')
     
     @staticmethod
     def get_db_connection_params():
         """Returns standard parameters for a PyMySQL connection"""
-        return {
+        params = {
             'host': Config.DB_HOST,
             'user': Config.DB_USER,
             'password': Config.DB_PASSWORD,
@@ -32,3 +34,10 @@ class Config:
             'charset': 'utf8mb4',
             'autocommit': True
         }
+        if Config.DB_SSL:
+            ssl_context = ssl.create_default_context()
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+            params['ssl'] = ssl_context
+        return params
+

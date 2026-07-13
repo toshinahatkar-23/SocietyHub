@@ -4,16 +4,9 @@ from config import Config
 def create_table():
     print(f"Connecting to database '{Config.DB_NAME}' on {Config.DB_HOST}:{Config.DB_PORT}...")
     try:
-        conn = pymysql.connect(
-            host=Config.DB_HOST,
-            user=Config.DB_USER,
-            password=Config.DB_PASSWORD,
-            database=Config.DB_NAME,
-            port=Config.DB_PORT,
-            charset='utf8mb4',
-            cursorclass=pymysql.cursors.DictCursor,
-            autocommit=True
-        )
+        params = Config.get_db_connection_params()
+        params['cursorclass'] = pymysql.cursors.DictCursor
+        conn = pymysql.connect(**params)
         with conn.cursor() as cursor:
             sql = """
             CREATE TABLE IF NOT EXISTS registration_requests (
