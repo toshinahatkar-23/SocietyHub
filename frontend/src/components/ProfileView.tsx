@@ -21,6 +21,7 @@ import {
   EyeOff
 } from 'lucide-react';
 import { apiService } from '../services/api';
+import { validateEmail, validateMobile, validatePassword } from '../utils/validation';
 
 interface ProfileViewProps {
   portal: 'admin' | 'resident' | 'security';
@@ -103,6 +104,14 @@ export default function ProfileView({
       alert('Error: User context is missing user ID.');
       return;
     }
+    if (!validateEmail(email)) {
+      alert('Error: Please enter a valid email address format (e.g. user@example.com).');
+      return;
+    }
+    if (!validateMobile(phone)) {
+      alert('Error: Mobile number must contain exactly 10 numeric digits.');
+      return;
+    }
     try {
       const res = await apiService.updateProfile({
         user_id: currentUser.user_id,
@@ -136,6 +145,11 @@ export default function ProfileView({
     }
     if (!currentPassword || !newPassword || !confirmPassword) {
       alert('Please fill out all password fields.');
+      return;
+    }
+    const checkStrength = validatePassword(newPassword);
+    if (!checkStrength.isValid) {
+      alert(`Error: ${checkStrength.message}`);
       return;
     }
     if (newPassword !== confirmPassword) {

@@ -197,8 +197,15 @@ export const apiService = {
     return response.data;
   },
 
-  async changePassword(data: { user_id: number; current_password: string; new_password: string }): Promise<any> {
-    const response = await apiClient.post<any>('/api/profile/change-password', data);
+  async changePassword(data: { user_id: number; current_password?: string; currentPassword?: string; new_password?: string; newPassword?: string }): Promise<any> {
+    const payload = {
+      user_id: data.user_id,
+      current_password: data.current_password || data.currentPassword,
+      currentPassword: data.current_password || data.currentPassword,
+      new_password: data.new_password || data.newPassword,
+      newPassword: data.new_password || data.newPassword
+    };
+    const response = await apiClient.post<any>('/api/profile/change-password', payload);
     return response.data;
   },
 

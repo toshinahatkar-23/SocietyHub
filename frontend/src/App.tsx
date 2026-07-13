@@ -16,6 +16,8 @@ import ResidentPortal from './components/ResidentPortal';
 import SecurityPortal from './components/SecurityPortal';
 import RegistrationRequestsView from './components/RegistrationRequestsView';
 import { apiService } from './services/api';
+import { formatINR } from './utils/format';
+import { validateEmail, validateMobile } from './utils/validation';
 
 export default function App() {
   const navigate = useNavigate();
@@ -70,12 +72,12 @@ export default function App() {
     residentCount: 0,
     visitorCount: 0,
     openComplaintCount: 0,
-    totalCollection: '$0',
+    totalCollection: '₹0',
     totalCollectionValue: 0,
     pendingRequestsCount: 0,
     trends: [],
-    avgReceipt: '$0',
-    outstanding: '$0',
+    avgReceipt: '₹0',
+    outstanding: '₹0',
     complianceRate: '100%',
     activities: []
   });
@@ -363,12 +365,22 @@ export default function App() {
       return;
     }
 
+    const calculatedEmail = resEmail || `${resName.toLowerCase().replace(/\s+/g, '')}@example.com`;
+    if (!validateEmail(calculatedEmail)) {
+      alert('Error: Please enter a valid email address format (e.g. user@example.com).');
+      return;
+    }
+    if (!validateMobile(resPhone)) {
+      alert('Error: Mobile number must contain exactly 10 numeric digits.');
+      return;
+    }
+
     try {
       setIsLoading(true);
       await apiService.addResident({
         name: resName,
         phone: resPhone,
-        email: resEmail || `${resName.toLowerCase().replace(/\s+/g, '')}@example.com`,
+        email: calculatedEmail,
         block: resBlock,
         flat_number: resFlat,
         flat_type: resType,

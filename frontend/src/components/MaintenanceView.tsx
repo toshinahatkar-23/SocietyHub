@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { MaintenanceBill, BillingStatus } from '../types';
+import { formatINR } from '../utils/format';
 
 interface MaintenanceViewProps {
   bills: MaintenanceBill[];
@@ -31,6 +32,10 @@ export default function MaintenanceView({
   // Dynamic calculations based on state values
   const totalOutstanding = bills
     .filter((b) => b.status !== 'Paid')
+    .reduce((acc, curr) => acc + curr.amount, 0);
+
+  const totalPaid = bills
+    .filter((b) => b.status === 'Paid')
     .reduce((acc, curr) => acc + curr.amount, 0);
 
   const paymentCompliance = (
@@ -141,7 +146,7 @@ export default function MaintenanceView({
             </span>
           </div>
           <p className="text-slate-400 font-extrabold text-[10px] uppercase tracking-widest">Total Collection (OCT)</p>
-          <h3 className="font-sans font-bold text-[32px] tracking-tight mt-2 text-slate-900">$45,280.00</h3>
+          <h3 className="font-sans font-bold text-[32px] tracking-tight mt-2 text-slate-900">{formatINR(totalPaid)}</h3>
         </div>
 
         {/* Outstanding Amount */}
@@ -153,7 +158,7 @@ export default function MaintenanceView({
             <span className="text-slate-500 text-xs font-bold bg-slate-50 border border-slate-200/50 px-2.5 py-1 rounded-xl">82% Pending</span>
           </div>
           <p className="text-slate-400 font-extrabold text-[10px] uppercase tracking-widest">Outstanding Amount</p>
-          <h3 className="font-sans font-bold text-[32px] tracking-tight mt-2 text-slate-900">${totalOutstanding.toLocaleString('en-US', { minimumFractionDigits: 2 })}</h3>
+          <h3 className="font-sans font-bold text-[32px] tracking-tight mt-2 text-slate-900">{formatINR(totalOutstanding)}</h3>
         </div>
       </section>
 
@@ -233,7 +238,7 @@ export default function MaintenanceView({
                       {bill.billingMonth}
                     </td>
                     <td className="px-8 py-3.5 font-bold text-slate-800">
-                      ${bill.amount.toFixed(2)}
+                      {formatINR(bill.amount)}
                     </td>
                     <td className="px-8 py-3.5 text-slate-450 font-semibold">
                       {bill.dueDate}
@@ -244,7 +249,7 @@ export default function MaintenanceView({
                     <td className="px-8 py-3.5 text-right">
                       {bill.status === 'Paid' ? (
                         <button
-                          onClick={() => alert(`Showing receipt for ${bill.flat}:\nReceipt Reference ID: RCP-9932\nAmount Paid: $${bill.amount.toFixed(2)}\nStatus: Successful`)}
+                          onClick={() => alert(`Showing receipt for ${bill.flat}:\nReceipt Reference ID: RCP-9932\nAmount Paid: ₹${bill.amount}\nStatus: Successful`)}
                           className="text-slate-800 hover:text-slate-950 font-bold text-xs cursor-pointer tracking-wider uppercase mr-2"
                         >
                           View Receipt

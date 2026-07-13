@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { apiService } from '../services/api';
 import apartmentImage from '../../assets/modern_apartment.png';
+import { validateEmail, validateMobile, validatePassword } from '../utils/validation';
 
 interface LoginViewProps {
   onLoginSuccess: (name: string, role: string, userObj?: any) => void;
@@ -103,20 +104,21 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
     }
 
     // 2. Email format validation
-    if (!regEmail.includes('@') || !regEmail.includes('.')) {
+    if (!validateEmail(regEmail)) {
       setErrorMessage('Please enter a valid email address.');
       return;
     }
 
     // 3. Mobile number validation (exactly 10 digits)
-    if (!/^\d{10}$/.test(regPhone)) {
-      setErrorMessage('Mobile number must be exactly 10 digits.');
+    if (!validateMobile(regPhone)) {
+      setErrorMessage('Mobile number must contain exactly 10 numeric digits.');
       return;
     }
 
-    // 4. Password length validation
-    if (regPassword.length < 6) {
-      setErrorMessage('Password must be at least 6 characters long.');
+    // 4. Password validation (strength check)
+    const checkStrength = validatePassword(regPassword);
+    if (!checkStrength.isValid) {
+      setErrorMessage(checkStrength.message);
       return;
     }
 

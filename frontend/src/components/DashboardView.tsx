@@ -75,8 +75,8 @@ export default function DashboardOverview({
   pendingRequestsCount,
   trends = [],
   activities = [],
-  avgReceipt = '$0',
-  outstanding = '$0',
+  avgReceipt = '₹0',
+  outstanding = '₹0',
   complianceRate = '100%'
 }: DashboardViewProps) {
   const [localActivities, setLocalActivities] = React.useState<any[]>([]);
@@ -275,8 +275,8 @@ export default function DashboardOverview({
                     const heightPercent = Math.max(Math.round((trend.value / maxValue) * 100), 5);
                     const isLatest = idx === (trends || []).length - 1;
                     const formattedVal = trend.value >= 1000 
-                      ? `$${(trend.value / 1000).toFixed(1)}K` 
-                      : `$${trend.value}`;
+                      ? `₹${(trend.value / 1000).toFixed(1)}K` 
+                      : `₹${trend.value}`;
                     
                     return (
                       <div 

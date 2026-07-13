@@ -5,6 +5,7 @@ import Sidebar from './Sidebar';
 import Header from './Header';
 import ProfileView from './ProfileView';
 import { X, LogOut, User, Building2, Mail, KeyRound, HelpCircle } from 'lucide-react';
+import { formatINR } from '../utils/format';
 
 interface ResidentPortalProps {
   currentUser: any;
@@ -338,7 +339,7 @@ export default function ResidentPortal({
                   <div className="space-y-1">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Outstanding dues</span>
                     <h4 className={`text-2xl font-black font-mono tracking-tight ${totalPendingAmount > 0 ? 'text-red-600' : 'text-slate-800'}`}>
-                      ${totalPendingAmount.toFixed(2)}
+                      {formatINR(totalPendingAmount)}
                     </h4>
                     <span className="text-[10px] font-medium text-slate-400 block group-hover:underline">Click to view bills →</span>
                   </div>
@@ -483,7 +484,7 @@ export default function ResidentPortal({
                   <div className="p-3 bg-red-50 border border-red-100/60 rounded-md flex items-center gap-3 shrink-0">
                     <div className="text-left">
                       <p className="text-[9px] font-bold text-red-500 uppercase tracking-wider">Unsettled Balance</p>
-                      <p className="text-sm font-extrabold text-red-700 font-mono">${totalPendingAmount.toFixed(2)}</p>
+                      <p className="text-sm font-extrabold text-red-700 font-mono">{formatINR(totalPendingAmount)}</p>
                     </div>
                   </div>
                 )}
@@ -514,7 +515,7 @@ export default function ResidentPortal({
                           <tr key={bill.id} className="hover:bg-slate-50/50 transition-colors h-14">
                             <td className="px-5 font-bold text-slate-900">{bill.billingMonth}</td>
                             <td className="px-5 text-slate-400 font-mono text-xs">{bill.id.toUpperCase()}</td>
-                            <td className="px-5 font-bold text-slate-900 font-mono">${bill.amount.toFixed(2)}</td>
+                            <td className="px-5 font-bold text-slate-900 font-mono">{formatINR(bill.amount)}</td>
                             <td className="px-5 text-slate-500 font-mono">{bill.dueDate}</td>
                             <td className="px-5">
                               <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border ${
@@ -539,7 +540,7 @@ export default function ResidentPortal({
                                 </button>
                               ) : (
                                 <button
-                                  onClick={() => alert(`Official Receipt for ${bill.billingMonth}:\nInvoice ID: ${bill.id}\nAmount Settled: $${bill.amount}\nStatus: Certified Paid`)}
+                                  onClick={() => alert(`Official Receipt for ${bill.billingMonth}:\nInvoice ID: ${bill.id}\nAmount Settled: ₹${bill.amount}\nStatus: Certified Paid`)}
                                   className="h-7 px-3 border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-[10px] uppercase rounded transition-all cursor-pointer"
                                 >
                                   Receipt

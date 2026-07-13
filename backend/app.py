@@ -80,6 +80,49 @@ def health_check():
     }), 200
 
 
+
+# ==========================================
+# VALIDATION HELPERS
+# ==========================================
+import re
+
+def validate_email_format(email):
+    pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+    return bool(re.match(pattern, email))
+
+def validate_phone_format(phone):
+    return phone.isdigit() and len(phone) == 10
+
+def validate_password_strength(password):
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters long."
+    if not re.search(r"[A-Z]", password):
+        return False, "Password must contain at least one uppercase letter."
+    if not re.search(r"[a-z]", password):
+        return False, "Password must contain at least one lowercase letter."
+    if not re.search(r"\d", password):
+        return False, "Password must contain at least one number."
+    if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
+        return False, "Password must contain at least one special character."
+    return True, ""
+
+def format_indian_currency(amount):
+    amount = int(round(float(amount)))
+    s = str(amount)
+    if len(s) <= 3:
+        return f"₹{s}"
+    last_three = s[-3:]
+    remaining = s[:-3]
+    parts = []
+    while len(remaining) > 2:
+        parts.insert(0, remaining[-2:])
+        remaining = remaining[:-2]
+    if remaining:
+        parts.insert(0, remaining)
+    return f"₹{','.join(parts)},{last_three}"
+
+
+
 # ==========================================
 # AUTHENTICATION ENDPOINT
 # ==========================================
@@ -275,12 +318,12 @@ def get_dashboard_stats():
             "residentCount": resident_count,
             "visitorCount": visitor_count,
             "openComplaintCount": open_complaint_count,
-            "totalCollection": f"${total_collection:,.2f}",
+            "totalCollection": format_indian_currency(total_collection),
             "totalCollectionValue": total_collection,
             "pendingRequestsCount": pending_requests_count,
             "trends": trends,
-            "avgReceipt": f"${avg_receipt:,.2f}" if avg_receipt > 0 else "$0",
-            "outstanding": f"${outstanding:,.2f}" if outstanding > 0 else "$0",
+            "avgReceipt": format_indian_currency(avg_receipt) if avg_receipt > 0 else "₹0",
+            "outstanding": format_indian_currency(outstanding) if outstanding > 0 else "₹0",
             "complianceRate": f"{compliance_rate}%",
             "activities": activities
         }), 200
@@ -353,6 +396,12 @@ def add_resident():
     if not name or not email or not phone or not flat_number:
         return jsonify({"error": "Missing required fields"}), 400
         
+    if not validate_email_format(email):
+        return jsonify({"error": "Invalid email address format"}), 400
+        
+    if not validate_phone_format(phone):
+        return jsonify({"error": "Mobile number must be exactly 10 digits and contain only numbers"}), 400
+        
     try:
         conn = get_db_connection()
         with conn.cursor() as cursor:
@@ -362,9 +411,9 @@ def add_resident():
                 conn.close()
                 return jsonify({"error": "A user with this email address already exists."}), 400
                 
-            # Hash default password "password123"
+            # Hash default password "Password@123"
             salt = bcrypt.gensalt()
-            hashed_pw = bcrypt.hashpw("password123".encode('utf-8'), salt).decode('utf-8')
+            hashed_pw = bcrypt.hashpw("Password@123".encode('utf-8'), salt).decode('utf-8')
             
             sql = """
                 INSERT INTO users (name, email, password, role, phone, block, flat_number, flat_type, status)
@@ -600,16 +649,17 @@ def register_request():
         return jsonify({"error": "All fields are required"}), 400
 
     # 2. Email format validation
-    if '@' not in email or '.' not in email:
+    if not validate_email_format(email):
         return jsonify({"error": "Invalid email address format"}), 400
 
     # 3. Mobile number validation (exactly 10 digits)
-    if not phone.isdigit() or len(phone) != 10:
-        return jsonify({"error": "Mobile number must be exactly 10 digits"}), 400
+    if not validate_phone_format(phone):
+        return jsonify({"error": "Mobile number must be exactly 10 digits and contain only numbers"}), 400
 
-    # 4. Password validation (at least 6 characters)
-    if len(password) < 6:
-        return jsonify({"error": "Password must be at least 6 characters long"}), 400
+    # 4. Password validation (strength check)
+    is_strong, err_msg = validate_password_strength(password)
+    if not is_strong:
+        return jsonify({"error": err_msg}), 400
 
     try:
         conn = get_db_connection()
@@ -955,6 +1005,12 @@ def update_profile():
     if not user_id or not name or not email or not phone:
         return jsonify({"error": "Missing required fields"}), 400
         
+    if not validate_email_format(email):
+        return jsonify({"error": "Invalid email address format"}), 400
+        
+    if not validate_phone_format(phone):
+        return jsonify({"error": "Mobile number must be exactly 10 digits and contain only numbers"}), 400
+        
     try:
         conn = get_db_connection()
         with conn.cursor() as cursor:
@@ -985,11 +1041,15 @@ def change_password():
     """Changes user password after verifying current password."""
     data = request.get_json() or {}
     user_id = data.get('user_id')
-    current_password = data.get('current_password')
-    new_password = data.get('new_password')
+    current_password = data.get('current_password') or data.get('currentPassword')
+    new_password = data.get('new_password') or data.get('newPassword')
     
     if not user_id or not current_password or not new_password:
         return jsonify({"error": "Missing required fields"}), 400
+        
+    is_strong, err_msg = validate_password_strength(new_password)
+    if not is_strong:
+        return jsonify({"error": err_msg}), 400
         
     try:
         conn = get_db_connection()
@@ -1006,7 +1066,7 @@ def change_password():
                 return jsonify({"error": "Incorrect current password"}), 400
                 
             # Hash new password using bcrypt
-            salt = bcrypt.gensalt()
+            salt = bcrypt.gensalt(12)
             new_hashed_pw = bcrypt.hashpw(new_password.encode('utf-8'), salt).decode('utf-8')
             
             cursor.execute("UPDATE users SET password = %s WHERE user_id = %s", (new_hashed_pw, user_id))
