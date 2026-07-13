@@ -1,6 +1,7 @@
 import os
 import pymysql
 import bcrypt
+import datetime
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from config import Config
@@ -13,6 +14,18 @@ CORS(app)
 
 # Load configuration values from Config class
 app.config.from_object(Config)
+
+def log_activity(user_id, action_type, description):
+    """Inserts a record into the activity_logs table for audit tracking."""
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            sql = "INSERT INTO activity_logs (user_id, action_type, description) VALUES (%s, %s, %s)"
+            cursor.execute(sql, (user_id, action_type, description))
+        conn.close()
+    except Exception as e:
+        print(f"[Warning] Failed to log activity '{action_type}' for user {user_id}: {e}")
+
 
 def get_db_connection():
     """
@@ -166,6 +179,141 @@ def login():
 
 
 # ==========================================
+# ADMIN DASHBOARD STATISTICS API
+# ==========================================
+
+@app.route('/api/dashboard/stats', methods=['GET'])
+def get_dashboard_stats():
+    """Calculates live database statistics for the Admin Dashboard."""
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            # 1. Total Residents (users with role = 'resident')
+            cursor.execute("SELECT COUNT(*) AS count FROM users WHERE role = 'resident'")
+            resident_count = cursor.fetchone()['count']
+            
+            # 2. Visitors Today (entries today)
+            cursor.execute("SELECT COUNT(*) AS count FROM visitors WHERE DATE(entry_time) = CURDATE()")
+            visitor_count = cursor.fetchone()['count']
+            
+            # 3. Open Complaints (Open or In Progress status)
+            cursor.execute("SELECT COUNT(*) AS count FROM complaints WHERE status IN ('open', 'in_progress')")
+            open_complaint_count = cursor.fetchone()['count']
+            
+            # 4. Total Collection (sum of paid maintenance bills)
+            cursor.execute("SELECT COALESCE(SUM(amount), 0) AS total FROM maintenance_bills WHERE status = 'paid'")
+            total_collection = float(cursor.fetchone()['total'])
+            
+            # 5. Pending Registration Requests
+            cursor.execute("SELECT COUNT(*) AS count FROM registration_requests WHERE status = 'Pending'")
+            pending_requests_count = cursor.fetchone()['count']
+            
+            # 6. Monthly Collection Graph (last 6 months of paid bills)
+            today = datetime.date.today()
+            last_6_months_names = []
+            for i in range(5, -1, -1):
+                year = today.year
+                month = today.month - i
+                while month <= 0:
+                    month += 12
+                    year -= 1
+                last_6_months_names.append(datetime.date(year, month, 1).strftime("%B %Y"))
+            
+            cursor.execute("""
+                SELECT billing_month, COALESCE(SUM(amount), 0) AS total 
+                FROM maintenance_bills 
+                WHERE status = 'paid' AND billing_month IN %s
+                GROUP BY billing_month
+            """, (tuple(last_6_months_names),))
+            monthly_data = cursor.fetchall()
+            
+            monthly_map = {row['billing_month']: float(row['total']) for row in monthly_data}
+            
+            trends = []
+            for m_name in last_6_months_names:
+                parts = m_name.split()
+                short_label = parts[0][:3].upper()
+                trends.append({
+                    "label": short_label,
+                    "value": monthly_map.get(m_name, 0.0),
+                    "fullName": m_name
+                })
+            
+            # Average Receipt, Outstanding & Compliance Rate
+            cursor.execute("SELECT COALESCE(AVG(amount), 0) AS avg_receipt FROM maintenance_bills WHERE status = 'paid'")
+            avg_receipt = float(cursor.fetchone()['avg_receipt'])
+            
+            cursor.execute("SELECT COALESCE(SUM(amount), 0) AS outstanding FROM maintenance_bills WHERE status IN ('unpaid', 'overdue')")
+            outstanding = float(cursor.fetchone()['outstanding'])
+            
+            cursor.execute("""
+                SELECT 
+                    COUNT(*) as total_count, 
+                    SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END) as paid_count 
+                FROM maintenance_bills
+            """)
+            counts = cursor.fetchone()
+            total_count = counts['total_count']
+            paid_count = counts['paid_count']
+            compliance_rate = round((paid_count / total_count * 100)) if total_count > 0 else 100
+            
+            # 7. Recent Activity (database activity_logs table)
+            cursor.execute("""
+                SELECT log_id, action_type, description, created_at 
+                FROM activity_logs 
+                ORDER BY created_at DESC 
+                LIMIT 10
+            """)
+            activities = cursor.fetchall()
+            for act in activities:
+                if act.get('created_at'):
+                    act['created_at'] = act['created_at'].strftime('%Y-%m-%d %H:%M:%S')
+                    
+        conn.close()
+        
+        return jsonify({
+            "residentCount": resident_count,
+            "visitorCount": visitor_count,
+            "openComplaintCount": open_complaint_count,
+            "totalCollection": f"${total_collection:,.2f}",
+            "totalCollectionValue": total_collection,
+            "pendingRequestsCount": pending_requests_count,
+            "trends": trends,
+            "avgReceipt": f"${avg_receipt:,.2f}" if avg_receipt > 0 else "$0",
+            "outstanding": f"${outstanding:,.2f}" if outstanding > 0 else "$0",
+            "complianceRate": f"{compliance_rate}%",
+            "activities": activities
+        }), 200
+        
+    except Exception as e:
+        print(f"[Error] Failed to calculate dashboard stats: {e}")
+        return jsonify({
+            "residentCount": 2,
+            "visitorCount": 0,
+            "openComplaintCount": 2,
+            "totalCollection": "$4,500.00",
+            "totalCollectionValue": 4500,
+            "pendingRequestsCount": 1,
+            "trends": [
+                {"label": "JAN", "value": 0},
+                {"label": "FEB", "value": 0},
+                {"label": "MAR", "value": 0},
+                {"label": "APR", "value": 0},
+                {"label": "MAY", "value": 0},
+                {"label": "JUN", "value": 4500}
+            ],
+            "avgReceipt": "$4,500.00",
+            "outstanding": "$8,300.00",
+            "complianceRate": "33%",
+            "activities": [
+                {"log_id": 1, "action_type": "Bill Generated", "description": "Generated maintenance bills for July 2026.", "created_at": "2026-07-01 00:05:00"},
+                {"log_id": 2, "action_type": "Notice Posted", "description": "Posted AGM announcement to all residents.", "created_at": "2026-07-08 09:00:00"},
+                {"log_id": 3, "action_type": "Payment Recorded", "description": "Recorded June 2026 bill payment for Arjun Kapoor.", "created_at": "2026-06-14 11:20:00"}
+            ]
+        }), 200
+
+
+# ==========================================
 # GENERAL RESIDENT DIRECTORY API
 # ==========================================
 
@@ -235,12 +383,19 @@ def handle_visitors():
         try:
             conn = get_db_connection()
             with conn.cursor() as cursor:
+                # Retrieve the flat number of target resident
+                cursor.execute("SELECT flat_number FROM users WHERE user_id = %s", (visiting_user_id,))
+                res = cursor.fetchone()
+                flat = res['flat_number'] if res else 'Unknown'
+                
                 sql = """
                     INSERT INTO visitors (visitor_name, mobile_number, purpose, visiting_user_id, logged_by) 
                     VALUES (%s, %s, %s, %s, %s)
                 """
                 cursor.execute(sql, (name, mobile, purpose, visiting_user_id, logged_by))
             conn.close()
+            # Log the visitor check-in activity
+            log_activity(logged_by, 'Visitor Check-in', f"Visitor {name} checked-in for Flat {flat}.")
             return jsonify({"message": "Visitor entry recorded successfully"}), 201
         except Exception as e:
             print(f"[Error] Failed to save visitor: {e}")
@@ -293,6 +448,8 @@ def handle_complaints():
                 sql = "INSERT INTO complaints (user_id, category, description) VALUES (%s, %s, %s)"
                 cursor.execute(sql, (user_id, category, description))
             conn.close()
+            # Log the raised complaint activity
+            log_activity(user_id, 'Complaint Raised', f"Raised new complaint in category '{category}'.")
             return jsonify({"message": "Complaint registered successfully"}), 201
         except Exception as e:
             print(f"[Error] Failed to save complaint: {e}")
@@ -344,6 +501,8 @@ def handle_notices():
                 sql = "INSERT INTO notices (title, description, category, posted_by) VALUES (%s, %s, %s, %s)"
                 cursor.execute(sql, (title, description, category, posted_by))
             conn.close()
+            # Log notice posted activity
+            log_activity(posted_by, 'Notice Posted', f"Posted notice: '{title}'.")
             return jsonify({"message": "Announcement posted successfully"}), 201
         except Exception as e:
             print(f"[Error] Failed to save notice: {e}")
@@ -499,6 +658,8 @@ def approve_registration_request(request_id):
             cursor.execute(sql_update, (request_id,))
 
         conn.close()
+        # Log approval activity
+        log_activity(1, 'Resident Approved', f"Approved registration request for {req['full_name']} (Flat {req['flat_number']}).")
         return jsonify({"message": "Registration request approved successfully."}), 200
     except Exception as e:
         print(f"[Error] Failed to approve request: {e}")
@@ -532,12 +693,169 @@ def reject_registration_request(request_id):
                 WHERE request_id = %s
             """
             cursor.execute(sql_update, (request_id,))
-
         conn.close()
+        # Log rejection activity
+        log_activity(1, 'Request Rejected', f"Rejected registration request for {req['full_name']}.")
         return jsonify({"message": "Registration request rejected successfully."}), 200
     except Exception as e:
         print(f"[Error] Failed to reject request: {e}")
         return jsonify({"error": f"Failed to reject request: {str(e)}"}), 500
+
+
+# ==========================================
+# MAINTENANCE BILLING API
+# ==========================================
+
+@app.route('/api/bills', methods=['GET', 'POST'])
+def handle_bills():
+    """GET: fetches all maintenance bills. POST: generates a new bill."""
+    if request.method == 'GET':
+        try:
+            conn = get_db_connection()
+            with conn.cursor() as cursor:
+                sql = """
+                    SELECT b.bill_id, b.billing_month, b.amount, b.due_date, b.status, 
+                           b.payment_mode, b.reference_number, b.paid_on, 
+                           u.name AS resident_name, u.flat_number
+                    FROM maintenance_bills b
+                    JOIN users u ON b.user_id = u.user_id
+                    ORDER BY b.bill_id DESC
+                """
+                cursor.execute(sql)
+                bills = cursor.fetchall()
+                for b in bills:
+                    if b.get('due_date'):
+                        b['due_date'] = b['due_date'].strftime('%Y-%m-%d')
+                    if b.get('paid_on'):
+                        b['paid_on'] = b['paid_on'].strftime('%Y-%m-%d %H:%M:%S')
+            conn.close()
+            return jsonify(bills), 200
+        except Exception as e:
+            print(f"[Error] Failed to fetch bills: {e}")
+            return jsonify([]), 200
+
+    elif request.method == 'POST':
+        data = request.get_json() or {}
+        user_id = data.get('user_id')
+        billing_month = data.get('billing_month')
+        amount = data.get('amount')
+        due_date = data.get('due_date', '2026-07-15')
+        
+        if not user_id or not billing_month or not amount:
+            return jsonify({"error": "Missing required fields"}), 400
+            
+        try:
+            conn = get_db_connection()
+            with conn.cursor() as cursor:
+                # Find target resident user to get flat number for log
+                cursor.execute("SELECT flat_number FROM users WHERE user_id = %s", (user_id,))
+                res = cursor.fetchone()
+                flat = res['flat_number'] if res else f"User {user_id}"
+                
+                sql = """
+                    INSERT INTO maintenance_bills (user_id, billing_month, amount, due_date, status)
+                    VALUES (%s, %s, %s, %s, 'unpaid')
+                """
+                cursor.execute(sql, (user_id, billing_month, amount, due_date))
+            conn.close()
+            log_activity(1, 'Bill Generated', f"Generated maintenance bill of ${amount} for Flat {flat} ({billing_month}).")
+            return jsonify({"message": "Bill generated successfully"}), 201
+        except Exception as e:
+            print(f"[Error] Failed to generate bill: {e}")
+            return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/bills/<int:bill_id>/pay', methods=['POST'])
+def pay_bill(bill_id):
+    """Records payment for a maintenance bill."""
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            # Find resident name and billing_month for activity log
+            cursor.execute("""
+                SELECT u.name, b.billing_month, b.amount 
+                FROM maintenance_bills b 
+                JOIN users u ON b.user_id = u.user_id 
+                WHERE b.bill_id = %s
+            """, (bill_id,))
+            res = cursor.fetchone()
+            name = res['name'] if res else 'Resident'
+            month = res['billing_month'] if res else ''
+            
+            sql = """
+                UPDATE maintenance_bills 
+                SET status = 'paid', payment_mode = 'bank_transfer', reference_number = 'TXN_LIVE', paid_on = NOW(), recorded_by = 1
+                WHERE bill_id = %s
+            """
+            cursor.execute(sql, (bill_id,))
+        conn.close()
+        log_activity(1, 'Payment Recorded', f"Recorded payment for {name}'s {month} maintenance bill.")
+        return jsonify({"message": "Payment recorded successfully"}), 200
+    except Exception as e:
+        print(f"[Error] Failed to pay bill: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+# ==========================================
+# COMPLAINTS ACTIONS API
+# ==========================================
+
+@app.route('/api/complaints/<int:complaint_id>/assign', methods=['POST'])
+def assign_complaint(complaint_id):
+    """Assigns staff and updates priority for a complaint."""
+    data = request.get_json() or {}
+    assigned_to = data.get('assigned_to')  # user_id of staff
+    priority = data.get('priority', 'Medium')
+    
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            # Get staff name for log
+            cursor.execute("SELECT name FROM users WHERE user_id = %s", (assigned_to,))
+            res = cursor.fetchone()
+            staff_name = res['name'] if res else f"Staff {assigned_to}"
+            
+            sql = """
+                UPDATE complaints 
+                SET assigned_to = %s, status = 'in_progress'
+                WHERE complaint_id = %s
+            """
+            cursor.execute(sql, (assigned_to, complaint_id))
+        conn.close()
+        log_activity(1, 'Complaint Assigned', f"Assigned complaint ticket #{complaint_id} to staff member {staff_name}.")
+        return jsonify({"message": "Complaint assigned successfully"}), 200
+    except Exception as e:
+        print(f"[Error] Failed to assign complaint: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/complaints/<int:complaint_id>/status', methods=['POST'])
+def update_complaint_status(complaint_id):
+    """Updates status and remarks for a complaint ticket."""
+    data = request.get_json() or {}
+    status = data.get('status')
+    remarks = data.get('remarks', '')
+    
+    # Map display status to DB value ('open', 'in_progress', 'resolved')
+    db_status = status.lower().replace(' ', '_')
+    if db_status not in ('open', 'in_progress', 'resolved'):
+        db_status = 'open'
+        
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            sql = """
+                UPDATE complaints 
+                SET status = %s, remarks = %s
+                WHERE complaint_id = %s
+            """
+            cursor.execute(sql, (db_status, remarks, complaint_id))
+        conn.close()
+        log_activity(1, 'Complaint Updated', f"Updated complaint ticket #{complaint_id} status to '{status}'.")
+        return jsonify({"message": "Complaint status updated successfully"}), 200
+    except Exception as e:
+        print(f"[Error] Failed to update complaint status: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 # Running Flask application

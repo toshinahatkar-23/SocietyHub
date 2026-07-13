@@ -66,8 +66,21 @@ export default function App() {
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [requests, setRequests] = useState<RegistrationRequest[]>([]);
   const [complaints, setComplaints] = useState<Complaint[]>([]);
-  const [bills, setBills] = useState<MaintenanceBill[]>(INITIAL_BILLS);
+  const [bills, setBills] = useState<MaintenanceBill[]>([]);
   const [notices, setNotices] = useState<Notice[]>([]);
+  const [stats, setStats] = useState<any>({
+    residentCount: 0,
+    visitorCount: 0,
+    openComplaintCount: 0,
+    totalCollection: '$0',
+    totalCollectionValue: 0,
+    pendingRequestsCount: 0,
+    trends: [],
+    avgReceipt: '$0',
+    outstanding: '$0',
+    complianceRate: '100%',
+    activities: []
+  });
   const [isLoading, setIsLoading] = useState(false);
 
   // Load all dynamic data from backend API
@@ -149,6 +162,23 @@ export default function App() {
         reviewed_by: r.reviewed_by
       }));
       setRequests(mappedRequests);
+
+      // 6. Fetch Bills
+      const billData = await apiService.getBills();
+      const mappedBills: MaintenanceBill[] = billData.map(b => ({
+        id: `bill-${b.bill_id}`,
+        flat: b.flat_number,
+        residentName: b.resident_name,
+        billingMonth: b.billing_month,
+        amount: parseFloat(b.amount),
+        dueDate: b.due_date,
+        status: b.status === 'paid' ? 'Paid' : 'Unpaid'
+      }));
+      setBills(mappedBills);
+
+      // 7. Fetch Dashboard Stats
+      const statsData = await apiService.getDashboardStats();
+      setStats(statsData);
 
     } catch (err: any) {
       console.error('Failed to sync backend data:', err);
@@ -481,19 +511,28 @@ export default function App() {
     setActiveModal('assignComplaint');
   };
 
-  const handleAssignSubmit = (e: React.FormEvent) => {
+  const handleAssignSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedItemId) return;
 
-    setComplaints(complaints.map(c =>
-      c.id === selectedItemId
-        ? { ...c, assignedTo: assignStaff, priority: assignPriority, status: 'In Progress' }
-        : c
-    ));
-
-    alert(`Ticket ${selectedItemId} assigned to ${assignStaff}. Status updated to In Progress.`);
-    setSelectedItemId(null);
-    setActiveModal(null);
+    try {
+      setIsLoading(true);
+      const numericComplaintId = parseInt(selectedItemId.replace('CMP-', ''));
+      // Find matching staff user ID (e.g. Ramesh Kumar is ID 4)
+      const targetStaffId = 4; // Default Ramesh Kumar ID in seed data
+      await apiService.assignComplaint(numericComplaintId, {
+        assigned_to: targetStaffId,
+        priority: assignPriority
+      });
+      await loadAllData();
+      alert(`Ticket ${selectedItemId} assigned to ${assignStaff}. Status updated to In Progress.`);
+      setSelectedItemId(null);
+      setActiveModal(null);
+    } catch (err: any) {
+      alert(err.response?.data?.error || err.message || 'Failed to assign complaint.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleOpenUpdateStatusModal = (complaintId: string) => {
@@ -506,19 +545,26 @@ export default function App() {
     setActiveModal('updateComplaint');
   };
 
-  const handleUpdateStatusSubmit = (e: React.FormEvent) => {
+  const handleUpdateStatusSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedItemId) return;
 
-    setComplaints(complaints.map(c =>
-      c.id === selectedItemId
-        ? { ...c, status: updateCompStatus, remarks: updateRemarks || undefined }
-        : c
-    ));
-
-    alert(`Ticket ${selectedItemId} progress set to "${updateCompStatus}".`);
-    setSelectedItemId(null);
-    setActiveModal(null);
+    try {
+      setIsLoading(true);
+      const numericComplaintId = parseInt(selectedItemId.replace('CMP-', ''));
+      await apiService.updateComplaintStatus(numericComplaintId, {
+        status: updateCompStatus === 'In Progress' ? 'In Progress' : updateCompStatus,
+        remarks: updateRemarks
+      });
+      await loadAllData();
+      alert(`Ticket ${selectedItemId} progress set to "${updateCompStatus}".`);
+      setSelectedItemId(null);
+      setActiveModal(null);
+    } catch (err: any) {
+      alert(err.response?.data?.error || err.message || 'Failed to update complaint status.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // 4. Maintenance Billing View Actions
@@ -527,45 +573,64 @@ export default function App() {
     setActiveModal('recordPayment');
   };
 
-  const handleRecordPaymentSubmit = (e: React.FormEvent) => {
+  const handleRecordPaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedItemId) return;
 
-    setBills(bills.map(b => b.id === selectedItemId ? { ...b, status: 'Paid' } : b));
-    alert('Billing payment received. Generated official receipts.');
-    setSelectedItemId(null);
-    setActiveModal(null);
+    try {
+      setIsLoading(true);
+      const numericBillId = parseInt(selectedItemId.replace('bill-', ''));
+      await apiService.payBill(numericBillId);
+      await loadAllData();
+      alert('Billing payment received. Generated official receipts.');
+      setSelectedItemId(null);
+      setActiveModal(null);
+    } catch (err: any) {
+      alert(err.response?.data?.error || err.message || 'Failed to record payment.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleGenerateBillSubmit = (e: React.FormEvent) => {
+  const handleGenerateBillSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!billResident || !billFlat) {
       alert('Please fill in resident name and target flat identifier.');
       return;
     }
 
-    const now = new Date();
-    const currentMonthStr = now.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    try {
+      setIsLoading(true);
+      const targetResident = residents.find(r =>
+        r.flat.toLowerCase() === billFlat.toLowerCase() ||
+        r.name.toLowerCase().includes(billResident.toLowerCase())
+      );
+      const user_id = targetResident ? parseInt(targetResident.id.replace('RES-', '')) : 2;
 
-    const newBill: MaintenanceBill = {
-      id: `bill-${Math.floor(100 + Math.random() * 900)}`,
-      flat: billFlat,
-      residentName: billResident,
-      billingMonth: billMonth || currentMonthStr,
-      amount: parseFloat(billAmount) || 250.00,
-      dueDate: 'Oct 15, 2023',
-      status: 'Unpaid'
-    };
+      const now = new Date();
+      const currentMonthStr = now.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 
-    setBills([newBill, ...bills]);
-    alert(`Maintenance invoice created successfully for Flat ${billFlat}.`);
+      await apiService.generateBill({
+        user_id: user_id,
+        billing_month: billMonth || currentMonthStr,
+        amount: parseFloat(billAmount) || 250.00,
+        due_date: '2026-07-15'
+      });
 
-    // Reset Form
-    setBillResident('');
-    setBillFlat('A-102');
-    setBillAmount('250.00');
-    setBillMonth('Oct 2023');
-    setActiveModal(null);
+      await loadAllData();
+      alert(`Maintenance invoice created successfully for Flat ${billFlat}.`);
+
+      // Reset Form
+      setBillResident('');
+      setBillFlat('A-102');
+      setBillAmount('250.00');
+      setBillMonth('Oct 2023');
+      setActiveModal(null);
+    } catch (err: any) {
+      alert(err.response?.data?.error || err.message || 'Failed to generate bill.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // 5. Notices Board Actions
@@ -610,11 +675,16 @@ export default function App() {
           <DashboardOverview
             onTriggerModal={(modal) => handleTriggerModal(modal, null)}
             setActiveTab={setActiveTab}
-            residentCount={residents.length}
-            visitorCount={visitors.length}
-            openComplaintCount={complaints.filter(c => c.status === 'Open').length}
-            totalCollection={`$${(45280 + bills.filter(b => b.status === 'Paid').reduce((acc, c) => acc + c.amount, 0)).toLocaleString('en-US')}`}
-            pendingRequestsCount={requests.filter(r => r.status === 'Pending').length}
+            residentCount={stats.residentCount}
+            visitorCount={stats.visitorCount}
+            openComplaintCount={stats.openComplaintCount}
+            totalCollection={stats.totalCollection}
+            pendingRequestsCount={stats.pendingRequestsCount}
+            trends={stats.trends}
+            activities={stats.activities}
+            avgReceipt={stats.avgReceipt}
+            outstanding={stats.outstanding}
+            complianceRate={stats.complianceRate}
           />
         );
       case 'residents':

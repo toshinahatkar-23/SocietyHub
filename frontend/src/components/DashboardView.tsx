@@ -9,7 +9,61 @@ interface DashboardViewProps {
   openComplaintCount: number;
   totalCollection: string;
   pendingRequestsCount: number;
+  trends?: Array<{ label: string; value: number; fullName: string }>;
+  activities?: Array<{ log_id: number; action_type: string; description: string; created_at: string }>;
+  avgReceipt?: string;
+  outstanding?: string;
+  complianceRate?: string;
 }
+
+const getRelativeTime = (dateStr: string) => {
+  if (!dateStr) return '';
+  if (dateStr.includes('ago') || dateStr.includes('Yesterday')) return dateStr;
+  try {
+    const date = new Date(dateStr.replace(' ', 'T'));
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    if (isNaN(diffMs)) return dateStr;
+    
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} mins ago`;
+    if (diffHours < 24) return `${diffHours} hours ago`;
+    if (diffDays === 1) return 'Yesterday';
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  } catch (e) {
+    return dateStr;
+  }
+};
+
+const getLogStyle = (actionType: string) => {
+  const act = (actionType || '').toLowerCase();
+  if (act.includes('resident') || act.includes('approve')) {
+    return {
+      icon: 'person_add',
+      color: 'bg-emerald-50 border border-emerald-100 text-emerald-600'
+    };
+  }
+  if (act.includes('payment') || act.includes('bill') || act.includes('collection')) {
+    return {
+      icon: 'payments',
+      color: 'bg-blue-50 border border-blue-100 text-blue-600'
+    };
+  }
+  if (act.includes('notice') || act.includes('broadcast')) {
+    return {
+      icon: 'campaign',
+      color: 'bg-purple-50 border border-purple-100 text-purple-600'
+    };
+  }
+  return {
+    icon: 'build',
+    color: 'bg-slate-100 border border-slate-200 text-slate-600'
+  };
+};
 
 export default function DashboardOverview({
   onTriggerModal,
@@ -18,19 +72,33 @@ export default function DashboardOverview({
   visitorCount,
   openComplaintCount,
   totalCollection,
-  pendingRequestsCount
+  pendingRequestsCount,
+  trends = [],
+  activities = [],
+  avgReceipt = '$0',
+  outstanding = '$0',
+  complianceRate = '100%'
 }: DashboardViewProps) {
-  // Mock activity log history that matches designs
-  const [activities, setActivities] = React.useState([
-    { id: 1, type: 'resident', text: 'Resident added: John Doe', detail: 'Apt 402-B • 10 mins ago', icon: 'person_add', color: 'bg-emerald-50 border border-emerald-100 text-emerald-600' },
-    { id: 2, type: 'payment', text: 'Payment recorded for Flat 302', detail: 'Maintenance Fee • 2 hours ago', icon: 'payments', color: 'bg-blue-50 border border-blue-100 text-blue-600' },
-    { id: 3, type: 'notice', text: 'New Notice: Annual General Meeting', detail: 'Public Broadcast • 5 hours ago', icon: 'campaign', color: 'bg-purple-50 border border-purple-100 text-purple-600' },
-    { id: 4, type: 'maintenance', text: 'Maintenance Ticket #882 Resolved', detail: 'Elevator Shaft 2 • Yesterday', icon: 'build', color: 'bg-slate-100 border border-slate-200 text-slate-600' }
-  ]);
+  const [localActivities, setLocalActivities] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    const mapped = (activities || []).map((act) => {
+      const style = getLogStyle(act.action_type);
+      return {
+        id: act.log_id,
+        text: act.description,
+        detail: `${act.action_type} • ${getRelativeTime(act.created_at)}`,
+        icon: style.icon,
+        color: style.color
+      };
+    });
+    setLocalActivities(mapped);
+  }, [activities]);
 
   const clearLogs = () => {
-    setActivities([]);
+    setLocalActivities([]);
   };
+
 
   return (
     <div className="px-10 py-10 max-w-[1536px] mx-auto w-full space-y-10 overflow-y-auto animate-fade-in">
@@ -143,7 +211,7 @@ export default function DashboardOverview({
             <div className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">{totalCollection}</div>
             <div className="flex items-center gap-1.5 mt-2 text-emerald-600 font-bold text-xs">
               <span className="material-symbols-outlined text-[14px] font-bold">check_circle</span>
-              <span>85% Collected</span>
+              <span>{complianceRate} Collected</span>
             </div>
           </div>
         </div>
@@ -201,36 +269,40 @@ export default function DashboardOverview({
 
               {/* Simulated interactive chart bars */}
               <div className="flex items-end justify-between gap-4 px-2 pb-6 h-56 border-b border-slate-100">
-                <div className="flex-1 bg-slate-50 rounded-t-lg relative group h-[40%] hover:bg-slate-100 transition-all cursor-pointer">
-                  <div className="absolute inset-x-0 bottom-0 bg-slate-200 group-hover:bg-primary/35 rounded-t-lg h-full transition-all"></div>
-                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-bold px-2 py-1 rounded shadow-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">$18.1K</div>
-                  <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] text-slate-400 font-bold tracking-wider">JAN</span>
-                </div>
-                <div className="flex-1 bg-slate-50 rounded-t-lg relative group h-[60%] hover:bg-slate-100 transition-all cursor-pointer">
-                  <div className="absolute inset-x-0 bottom-0 bg-slate-200 group-hover:bg-primary/35 rounded-t-lg h-full transition-all"></div>
-                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-bold px-2 py-1 rounded shadow-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">$27.2K</div>
-                  <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] text-slate-400 font-bold tracking-wider">FEB</span>
-                </div>
-                <div className="flex-1 bg-slate-50 rounded-t-lg relative group h-[55%] hover:bg-slate-100 transition-all cursor-pointer">
-                  <div className="absolute inset-x-0 bottom-0 bg-slate-200 group-hover:bg-primary/35 rounded-t-lg h-full transition-all"></div>
-                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-bold px-2 py-1 rounded shadow-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">$24.8K</div>
-                  <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] text-slate-400 font-bold tracking-wider">MAR</span>
-                </div>
-                <div className="flex-1 bg-slate-50 rounded-t-lg relative group h-[75%] hover:bg-slate-100 transition-all cursor-pointer">
-                  <div className="absolute inset-x-0 bottom-0 bg-slate-200 group-hover:bg-primary/35 rounded-t-lg h-full transition-all"></div>
-                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-bold px-2 py-1 rounded shadow-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">$33.9K</div>
-                  <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] text-slate-400 font-bold tracking-wider">APR</span>
-                </div>
-                <div className="flex-1 bg-slate-50 rounded-t-lg relative group h-[85%] hover:bg-slate-100 transition-all cursor-pointer">
-                  <div className="absolute inset-x-0 bottom-0 bg-slate-300 group-hover:bg-primary/50 rounded-t-lg h-full transition-all"></div>
-                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-bold px-2 py-1 rounded shadow-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">$38.5K</div>
-                  <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] text-slate-400 font-bold tracking-wider">MAY</span>
-                </div>
-                <div className="flex-1 bg-slate-100 rounded-t-lg relative group h-[95%] hover:bg-slate-200 transition-all cursor-pointer">
-                  <div className="absolute inset-x-0 bottom-0 bg-primary/85 rounded-t-lg h-full transition-all"></div>
-                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-bold px-2 py-1 rounded shadow-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">$45.2K</div>
-                  <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] text-primary font-bold tracking-wider">JUN</span>
-                </div>
+                {(() => {
+                  const maxValue = Math.max(...(trends || []).map(t => t.value), 1);
+                  return (trends || []).map((trend, idx) => {
+                    const heightPercent = Math.max(Math.round((trend.value / maxValue) * 100), 5);
+                    const isLatest = idx === (trends || []).length - 1;
+                    const formattedVal = trend.value >= 1000 
+                      ? `$${(trend.value / 1000).toFixed(1)}K` 
+                      : `$${trend.value}`;
+                    
+                    return (
+                      <div 
+                        key={idx} 
+                        style={{ height: `${heightPercent}%` }} 
+                        className="flex-1 bg-slate-50 rounded-t-lg relative group hover:bg-slate-100 transition-all cursor-pointer"
+                      >
+                        <div 
+                          className={`absolute inset-x-0 bottom-0 rounded-t-lg h-full transition-all ${
+                            isLatest 
+                              ? 'bg-primary/85 group-hover:bg-primary' 
+                              : 'bg-slate-200 group-hover:bg-primary/35'
+                          }`}
+                        ></div>
+                        <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-bold px-2 py-1 rounded shadow-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20">
+                          {formattedVal}
+                        </div>
+                        <span className={`absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] font-bold tracking-wider ${
+                          isLatest ? 'text-primary' : 'text-slate-400'
+                        }`}>
+                          {trend.label}
+                        </span>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             </div>
 
@@ -238,15 +310,15 @@ export default function DashboardOverview({
             <div className="pt-6 grid grid-cols-3 gap-6 text-center">
               <div>
                 <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Avg. Receipt</p>
-                <p className="text-[20px] font-bold text-slate-800 mt-1.5">$346</p>
+                <p className="text-[20px] font-bold text-slate-800 mt-1.5">{avgReceipt}</p>
               </div>
               <div>
                 <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Outstanding</p>
-                <p className="text-[20px] font-bold text-red-600 mt-1.5">$1,200</p>
+                <p className="text-[20px] font-bold text-red-600 mt-1.5">{outstanding}</p>
               </div>
               <div>
                 <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Compliance Rate</p>
-                <p className="text-[20px] font-bold text-emerald-600 mt-1.5">98%</p>
+                <p className="text-[20px] font-bold text-emerald-600 mt-1.5">{complianceRate}</p>
               </div>
             </div>
           </div>
@@ -270,11 +342,11 @@ export default function DashboardOverview({
               </div>
 
               <div className="p-8 space-y-6 max-h-[300px] overflow-y-auto">
-                {activities.length > 0 ? (
-                  activities.map((item, index) => (
+                {localActivities.length > 0 ? (
+                  localActivities.map((item, index) => (
                     <div key={item.id} className="flex gap-4 relative">
                       {/* Vertical line */}
-                      {index < activities.length - 1 && (
+                      {index < localActivities.length - 1 && (
                         <div className="absolute left-[13px] top-6 bottom-[-24px] w-[1px] bg-slate-100"></div>
                       )}
                       <div className={`w-7 h-7 rounded-full ${item.color} flex items-center justify-center shrink-0 z-10 shadow-none`}>
@@ -300,7 +372,7 @@ export default function DashboardOverview({
             <div className="p-8 bg-slate-50/50 border-t border-slate-100">
               <button
                 onClick={clearLogs}
-                disabled={activities.length === 0}
+                disabled={localActivities.length === 0}
                 className="w-full h-11 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-none uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Clear Log History

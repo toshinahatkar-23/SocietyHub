@@ -156,6 +156,36 @@ export const apiService = {
     const response = await apiClient.post<{ message: string }>(`/api/registration-requests/${id}/reject`);
     return response.data;
   },
+
+  async getDashboardStats(): Promise<any> {
+    const response = await apiClient.get<any>('/api/dashboard/stats');
+    return response.data;
+  },
+
+  async getBills(): Promise<any[]> {
+    const response = await apiClient.get<any[]>('/api/bills');
+    return response.data;
+  },
+
+  async generateBill(data: { user_id: number; billing_month: string; amount: number; due_date?: string }): Promise<any> {
+    const response = await apiClient.post<any>('/api/bills', data);
+    return response.data;
+  },
+
+  async payBill(billId: number): Promise<any> {
+    const response = await apiClient.post<any>(`/api/bills/${billId}/pay`);
+    return response.data;
+  },
+
+  async assignComplaint(id: number, data: { assigned_to: number; priority?: string }): Promise<any> {
+    const response = await apiClient.post<any>(`/api/complaints/${id}/assign`, data);
+    return response.data;
+  },
+
+  async updateComplaintStatus(id: number, data: { status: string; remarks?: string }): Promise<any> {
+    const response = await apiClient.post<any>(`/api/complaints/${id}/status`, data);
+    return response.data;
+  },
 };
 
 export interface RegistrationRequestResponse {
